@@ -2,28 +2,29 @@
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./analytics'), require('./core'));
   else root.KBOPortfolio = factory(root.KBOAnalytics, root.KBOCore);
 })(globalThis, function (A, C) {
-  const metrics = {onbase:'obp', contact:'k', power:'iso', eye:'bb', production:'ops', homerun:'hr'};
+  const {comparisonAxes, comparisonFitPresets} = A;
+  const axesByKey = new Map(comparisonAxes.map(axis => [axis.key, axis]));
   const presets = {
-    onbase:A.fitPresets.onbase,
-    power:A.fitPresets.power,
-    contact:{...A.fitPresets.strikeout, onbase:1, contact:4},
-    balanced:{...A.fitPresets.balanced, production:0}
+    onbase:comparisonFitPresets.onbase,
+    power:comparisonFitPresets.power,
+    contact:{...comparisonFitPresets.strikeout, avg:1, k:4},
+    balanced:comparisonFitPresets.balanced
   };
-  const active = weights => A.dimensions.filter(d => weights[d.key] > 0);
-  const metric = (row, key) => row.stats[metrics[key]];
+  const active = weights => comparisonAxes.filter(d => weights[d.key] > 0);
+  const metric = (row, key) => A.comparisonMetric(row, axesByKey.get(key)).actual;
   function evaluate(pool, weights) {
     const axes = active(weights);
-    const oriented = (row, key) => {
-      const value = metric(row, key);
-      return Number.isFinite(value) ? value * (key === 'contact' ? -1 : 1) : null;
+    const oriented = (row, axis) => {
+      const value = metric(row, axis.key);
+      return Number.isFinite(value) ? value * (axis.direction ?? 1) : null;
     };
-    const reference = Object.fromEntries(axes.map(d => [d.key, pool.map(r => oriented(r, d.key)).filter(Number.isFinite)]));
+    const reference = Object.fromEntries(axes.map(d => [d.key, pool.map(r => oriented(r, d)).filter(Number.isFinite)]));
     const entries = pool.map(row => {
       const scores = Object.fromEntries(axes.map(d => {
         const values = reference[d.key];
-        return [d.key, {value:A.pct(oriented(row, d.key), values), n:values.length}];
+        return [d.key, {value:A.pct(oriented(row, d), values), n:values.length}];
       }));
-      return {row, scores, ...A.fitScore(scores, weights)};
+      return {row, scores, ...A.fitScore(scores, weights, comparisonAxes)};
     });
     entries.sort((a,b) => (b.value ?? -1) - (a.value ?? -1) ||
       b.row.stats.pa - a.row.stats.pa || a.row.name.localeCompare(b.row.name, 'ko') || a.row.id.localeCompare(b.row.id));

@@ -37,6 +37,14 @@ const comparisonAxes=[
  {key:'iso',code:'ISO',name:'순수 장타력',formula:'SLG − AVG',fields:['TB','H','AB'],calculate:(tb,h,ab)=>ab>0&&h<=ab&&tb>=h&&tb<=4*h?(tb-h)/ab:null},
  {key:'sb',code:'SB/PA',name:'도루 생산력',formula:'SB / PA',fields:['SB','PA'],calculate:(sb,pa)=>pa>0?sb/pa:null}
 ];
+const comparisonFitPresets={
+ balanced:{avg:1,bb:1,k:1,iso:1,sb:1},
+ onbase:{avg:2,bb:3,k:1,iso:0,sb:0},
+ power:{avg:0,bb:0,k:0,iso:1,sb:0},
+ strikeout:{avg:0,bb:0,k:1,iso:0,sb:0},
+ walk:{avg:0,bb:1,k:0,iso:0,sb:0},
+ speed:{avg:0,bb:0,k:0,iso:0,sb:1}
+};
 function comparisonMetric(row,axis){
  const counts=axis.fields.map(key=>row.raw[key]);
  if(counts.some(value=>value==null||String(value).trim()===''))return {actual:null,reason:'missing'};
@@ -134,5 +142,5 @@ function create(records,{qualifiedBaseline=false}={}){
  }
  return {rows,audit,byYear,byPlayer,league,lookup,history,growth,features,cohort,scores,similar,discover};
 }
-return {create,dimensions,num,pct,rates,sd,woba,wrcWeights,fitPresets,fitScore,radarGrade,gradeBands,comparisonMinPA,comparisonAxes,compareBatters};
+return {create,dimensions,num,pct,rates,sd,woba,wrcWeights,fitPresets,fitScore,radarGrade,gradeBands,comparisonMinPA,comparisonAxes,comparisonFitPresets,comparisonMetric,compareBatters};
 });

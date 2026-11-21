@@ -11,14 +11,14 @@ const records = require('../sample_data.json');
 
 test('낮은 K%, 0과 결측, 동률, 유효 표본 수', () => {
   const pool = [0,0,.15,.2,.25,null].map((k,i)=>({
-    id:String(i),name:String(i),stats:{k,pa:200+i}
+    id:String(i),name:String(i),stats:{pa:200+i},raw:{PA:200,SO:k===null?'':200*k}
   }));
-  const entries = P.evaluate(pool,A.fitPresets.strikeout);
+  const entries = P.evaluate(pool,A.comparisonFitPresets.strikeout);
   assert.deepEqual(entries.map(e=>e.rank),[1,1,3,4,5,undefined]);
   assert.equal(entries[0].row.id,'1');
   assert.equal(entries[0].value,80);
   assert.equal(entries.at(-1).value,null);
-  assert.ok(P.evaluate(pool.slice(2),A.fitPresets.strikeout).every(e=>e.value===null));
+  assert.ok(P.evaluate(pool.slice(2),A.comparisonFitPresets.strikeout).every(e=>e.value===null));
   assert.deepEqual(P.evaluate([],P.presets.onbase),[]);
 });
 
@@ -68,6 +68,7 @@ test('탐색 → 후보 선택 → 기존 화면 연결 → 메모 저장 및 �
     return $;
   }
   function select($) {
+    assert.deepEqual($('weights').querySelectorAll('input').map(i=>i.attrs.id),['weight-avg','weight-bb','weight-k','weight-iso','weight-sb']);
     $('season').value='2024';
     $('search-criteria').onsubmit({preventDefault(){}});
     const options = $('candidate-table').querySelectorAll('[data-candidate]');

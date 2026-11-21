@@ -4,14 +4,7 @@ const $=id=>document.getElementById(id),A=KBOAnalytics,V=KBOCharts,esc=V.esc;
 const fmt=(v,n=3)=>Number.isFinite(v)?v.toFixed(n):'—';
 const positions=KBOCore.positionNames;
 const fitAxes=A.comparisonAxes;
-const fitPresets={
- balanced:{avg:1,bb:1,k:1,iso:1,sb:1},
- onbase:{avg:2,bb:3,k:1,iso:0,sb:0},
- power:{avg:0,bb:0,k:0,iso:1,sb:0},
- strikeout:{avg:0,bb:0,k:1,iso:0,sb:0},
- walk:{avg:0,bb:1,k:0,iso:0,sb:0},
- speed:{avg:0,bb:0,k:0,iso:0,sb:1}
-};
+const fitPresets=A.comparisonFitPresets;
 const zeroGuide=`<div class="zero-guide">
   <p><strong>실제 기록 0</strong> 계산 기준이 되는 기회는 있었지만, 해당 결과는 0건입니다. 삼진율 0%는 삼진 0건, 출루율 0.000은 안타·볼넷·몸에 맞는 공 0건을 뜻합니다.</p>
   <p><strong>백분위 0점</strong> 비교군의 유효 기록이 모두 해당 선수보다 유리했다는 뜻입니다. K% 백분위 0점은 비교군보다 삼진율이 높았다는 의미입니다.</p>

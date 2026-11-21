@@ -6,7 +6,7 @@
   const memoFields = ['주목한 이유','강점에 대한 분석가 의견','추가로 확인할 부분','경기 영상 또는 현장 관찰 메모','최종 의견'];
   const option = (value, name) => `<option value="${esc(value)}">${esc(name)}</option>`;
   const num = (value, digits = 3) => Number.isFinite(value) ? value.toFixed(digits) : '미산출';
-  const format = (value, key) => ['contact','eye','homerun'].includes(key) && Number.isFinite(value) ? `${num(100*value, 2)}%` : num(value);
+  const format = (value, key) => ['k','bb','sb'].includes(key) && Number.isFinite(value) ? `${num(100*value, 2)}%` : num(value);
   const keyOf = row => C.selectionKey(row.id, row.year);
   const positionText = (code) => C.positionText(code);
   const table = (columns, rows) => `<table><thead><tr>${columns.map(c=>`<th scope="col">${esc(c)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr${row.low?' class="low-sample"':''}>${row.map(cell=>`<td>${cell}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
@@ -15,9 +15,9 @@
     const total = axes.reduce((sum,d) => sum+weights[d.key],0);
     return axes.length ? `합계 ${total} · ${axes.map(d=>`${d.name} ${weights[d.key]} (${num(100*weights[d.key]/total,1)}%)`).join(' · ')}` : '양수 비중을 하나 이상 지정하세요.';
   }
-  const weightsFromForm = () => Object.fromEntries(A.dimensions.map(d=>[d.key, $('weight-'+d.key).valueAsNumber]));
+  const weightsFromForm = () => Object.fromEntries(A.comparisonAxes.map(d=>[d.key, $('weight-'+d.key).valueAsNumber]));
   function useProfile(profile) {
-    for (const d of A.dimensions) $('weight-'+d.key).value = P.presets[profile][d.key];
+    for (const d of A.comparisonAxes) $('weight-'+d.key).value = P.presets[profile][d.key];
     $('weight-summary').textContent = weightText(weightsFromForm());
   }
   function evidence(entry, weights) {
@@ -45,7 +45,7 @@
     $('profile').innerHTML = Object.entries(names).map(([key,name])=>option(key,name)).join('');
     $('alternate').innerHTML = Object.keys(P.presets).map(key=>option(key,names[key])).join('');
     $('alternate').value = 'power';
-    $('weights').innerHTML = A.dimensions.map(d=>`<label>${d.meaning} ${d.name}<input type="number" min="0" max="10" step="1" required id="weight-${d.key}"></label>`).join('');
+    $('weights').innerHTML = A.comparisonAxes.map(d=>`<label>${d.name} · ${d.code}<input type="number" min="0" max="10" step="1" required id="weight-${d.key}"></label>`).join('');
     useProfile('onbase');
     $('profile').onchange = () => { if ($('profile').value !== 'custom') useProfile($('profile').value); };
     $('weights').oninput = () => {
@@ -103,10 +103,10 @@
       $('open-lab').href = 'scouting-dashboard.html?'+params;
       $('storage-status').textContent = '';
       const comparisons = axes.map(d => {
-        const ordered = [...entries].sort((a,b)=>(P.metric(b.row,d.key)-P.metric(a.row,d.key))*(d.key==='contact'?-1:1));
+        const ordered = [...entries].sort((a,b)=>(P.metric(b.row,d.key)-P.metric(a.row,d.key))*(d.direction ?? 1));
         const first = ordered[0].row, last = ordered.at(-1).row;
         const gap = Math.abs(P.metric(first,d.key)-P.metric(last,d.key));
-        return `<li>${esc(d.name)} · ${gap < 1e-10 ? '선택 후보 기록 동일' : `${esc(first.name+' ('+first.team+')')}이(가) ${esc(last.name+' ('+last.team+')')}보다 ${d.key==='contact'?'낮음':'높음'} · 차이 ${['contact','eye','homerun'].includes(d.key) ? num(100*gap,2)+'%p' : num(gap)}`}</li>`;
+        return `<li>${esc(d.name)} · ${gap < 1e-10 ? '선택 후보 기록 동일' : `${esc(first.name+' ('+first.team+')')}이(가) ${esc(last.name+' ('+last.team+')')}보다 ${d.direction===-1?'낮음':'높음'} · 차이 ${['k','bb','sb'].includes(d.key) ? num(100*gap,2)+'%p' : num(gap)}`}</li>`;
       }).join('');
       $('report-content').innerHTML = `
         <h3>자동 분석 · ${esc(names[profile])} 타자 검토</h3>
@@ -212,7 +212,7 @@
           !preview.length ? '<p>표시된 후보 중 두 기준으로 함께 계산할 수 있는 선수가 없습니다.</p>' :
           `<div class="table-wrap">${table(['선수 / 구단','변경 전','변경 후','순위 이동','점수 변화에 가장 크게 기여한 축'],preview.map(({before,after:next})=>{
             const total = w => Object.values(w).reduce((a,b)=>a+b,0);
-            const contributions = A.dimensions.map(d=>({d,value:((next.scores[d.key]?.value ?? 0)-50)*after[d.key]/total(after)-((before.scores[d.key]?.value ?? 0)-50)*weights[d.key]/total(weights)})).sort((a,b)=>Math.abs(b.value)-Math.abs(a.value));
+            const contributions = A.comparisonAxes.map(d=>({d,value:((next.scores[d.key]?.value ?? 0)-50)*after[d.key]/total(after)-((before.scores[d.key]?.value ?? 0)-50)*weights[d.key]/total(weights)})).sort((a,b)=>Math.abs(b.value)-Math.abs(a.value));
             const rankChange = before.rank-next.rank, driver = contributions[0];
             return [esc(before.row.name+' · '+before.row.team),`${before.rank}위 · ${num(before.value,1)}점`,`${next.rank}위 · ${num(next.value,1)}점`,rankChange ? `${Math.abs(rankChange)}계단 ${rankChange>0?'상승':'하락'}` : '유지',Math.abs(driver.value)<1e-10 ? '변화 없음' : `${driver.d.name} ${driver.value>0?'+':''}${num(driver.value,1)}점 (50백분위 기준)`];
           }))}</div>`);

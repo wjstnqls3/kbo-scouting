@@ -63,10 +63,12 @@ try{
  const importWarnings=params.getAll('selection').length-imported.length;
  // 대시보드 첫 진입 시 URL에 전달된 첫 선수를 기준 선수로 열어 카드 순서와 선택 상태를 맞춘다.
  if(imported.length){$('year').value=String(imported[0].year);}
+ let searchBase=null, searchPeer=null;
  const primaryKey=imported[0]?`${imported[0].id}|${imported[0].year}`:'';
- $('selected-group').innerHTML=params.getAll('selection').length?`<section class="panel"><h2>선택 선수 ${imported.length}명</h2><div class="actions">${imported.map(x=>`<button type="button" data-select-import="${esc(x.id)}|${x.year}">${esc(label(x))}</button>`).join('')}</div><p class="hint">선택 선수 전환: 비교 유지 · 목록 밖 선수 검색: 단독 리포트${importWarnings?' · 분석 제외 '+importWarnings+'건':''}</p></section>`:'';
+ $('selected-group').innerHTML=params.getAll('selection').length?`<section class="panel"><h2>선택 선수 ${imported.length}명</h2><div class="actions">${imported.map(x=>`<button type="button" data-select-import="${esc(x.id)}|${x.year}">${esc(label(x))}</button>`).join('')}</div><p class="hint">선택 선수 전환: 비교 유지 · 목록 밖 선수 검색: 현재 선수와 2인 비교${importWarnings?' · 분석 제외 '+importWarnings+'건':''}</p></section>`:'';
  $('selected-group').querySelectorAll('[data-select-import]').forEach(button=>button.onclick=()=>{
    const x=engine.lookup.get(button.dataset.selectImport);if(!x)return;
+   searchBase=searchPeer=null;
    $('year').value=String(x.year);$('search').value='';populatePlayers(x.id);renderReport();
  });
 
@@ -102,6 +104,7 @@ try{
   return {...A.radarGrade(scores,row.stats.pa,minimum,A.comparisonAxes),minimum};
  }
  function openFinderPlayer(id,year){
+  searchBase=searchPeer=null;
   $('year').value=String(year);
   $('search').value='';
   populatePlayers(id);
@@ -183,7 +186,10 @@ try{
  }
 
  function renderReport(override=null,peerOnly=false){
-  const reference=engine.league.get(+$('year').value)?.qualifyingPA;
+  const selected=engine.lookup.get(`${$('player').value}|${$('year').value}`);
+  const searchComparison=!peerOnly&&searchPeer!==null&&searchPeer===selected;
+  const r=override||(searchComparison?searchBase:selected);
+  const reference=engine.league.get(r?.year||+$('year').value)?.qualifyingPA;
   if(!reference){
    $('minpa-guide').textContent='기록을 열면 해당 시즌의 비교군 평균과 규정 타석 참고값을 확인할 수 있습니다.';
    $('report').innerHTML='<p class="panel">이름을 검색해 분석할 선수와 시즌을 선택하세요.</p>';
@@ -194,7 +200,6 @@ try{
   if(!$('controls').reportValidity())return;
   const guide=`기본값 ${reference.minimum}타석 = 예정 팀 경기수 × 3.1의 소수점 버림. 규정 충족 ${reference.count}명 · 평균 ${reference.count ? fmt(reference.average,1)+'타석' : '미산출'}. 표본이 적으면 최소 타석을 낮춰 보세요.`;
   $('minpa-guide').textContent=guide;
-  const r=override?.id?override:engine.lookup.get(`${$('player').value}|${$('year').value}`);
   if(!r){
    $('report').innerHTML='<p class="panel">선수·분석 설정에서 이름을 검색하고 분석할 선수를 선택하세요.</p>';
    $('print').disabled=true;
@@ -204,7 +209,7 @@ try{
   const min=manualMinPA?+$('minpa').value:KBOCore.requiredPA(r.year),settings={minPA:min,era:$('era').value,group:$('group').value};
   const pool=engine.cohort(r,settings),l=engine.league.get(r.year),s=r.stats,change=engine.growth(r,min),similar=engine.similar(r,min);
   const averagePA=pool.length ? pool.reduce((sum,x)=>sum+x.stats.pa,0)/pool.length : null;
-  $('minpa-guide').textContent=`현재 비교군 ${pool.length}개 선수·시즌 기록 · 평균 ${averagePA===null?'미산출':fmt(averagePA,1)+'타석'}. ${guide}`;
+  if(!peerOnly)$('minpa-guide').textContent=`현재 비교군 ${pool.length}개 선수·시즌 기록 · 평균 ${averagePA===null?'미산출':fmt(averagePA,1)+'타석'}. ${guide}`;
   const previous=engine.lookup.get(`${r.id}|${r.year-1}`);
   const growthMissing=[];
   if(!previous)growthMissing.push(`${r.year-1}년 유효 기록 없음`);
@@ -214,15 +219,15 @@ try{
 
   const unavailable=['position','both'].includes(settings.group)&&!KBOCore.knownPosition(r.position)?'비교할 세부 포지션 자료 부족':['age','both'].includes(settings.group)&&r.age===null?'비교할 나이 자료 부족':pool.length<5?`비교 표본 부족 (${pool.length}/5)`:'해당 지표 기록 부족';
   const missingScoreNote=pool.length<5?`<p class="hint">— ${esc(unavailable)} · 상대평가 비교 기준</p>${pool.length<5?'<button type="button" class="radar-reset" data-reset-radar>상대평가 비교군 초기화</button>':''}`:'';
-  // An outside search opens a standalone report; imported comparisons stay unchanged.
   const inComparison=imported.some(x=>x.id===r.id&&x.year===r.year);
-  const importedPeers=inComparison?imported.filter(x=>!(x.id===r.id&&x.year===r.year)):[];
+  const importedPeers=searchComparison?[searchPeer]:inComparison?imported.filter(x=>x!==r):[];
+  const showIndividualRadar=!searchComparison&&!(peerOnly&&r===searchPeer);
   if(!peerOnly)updateSeasonNote([r.year,...importedPeers.map(x=>x.year)]);
   const delta=['avg','obp','slg','ops'].map((k,i)=>({label:['타율','출루율','장타율','OPS'][i],value:Number.isFinite(s[k])&&l[k]>0?(s[k]/l[k]-1)*100:null,detail:'선수/동시즌 리그 − 1, 백분율'}));
   const plotted=pool.slice().sort((a,b)=>a.year-b.year||a.id.localeCompare(b.id));const sample=plotted.length>300?plotted.filter((_,i)=>i%Math.ceil(plotted.length/300)===0):plotted;
     const basicStats=['avg','obp','slg','ops'];
   const statNames={avg:'타율',obp:'출루율',slg:'장타율',ops:'OPS'};
-  const primary=(x)=>primaryKey===`${x.id}|${x.year}`;
+  const primary=(x)=>searchComparison?x===searchBase:primaryKey===`${x.id}|${x.year}`;
   const positionNote=r.positionEvidence?`<p class="hint">${esc(KBOCore.positionText(r.position))} · <a href="${esc(r.positionEvidence.source)}" target="_blank" rel="noopener noreferrer">${esc(r.year)}년 포지션 근거 ↗</a></p>`:r.position==='OF'&&['position','both'].includes(settings.group)?'<p class="hint">세부 위치 비교는 자료 부족으로 미산출</p>':'';
   const observations=globalThis.KBOScoutingObservations?.lookup(r.id,r.year)||[];
   const injuries=globalThis.KBOScoutingObservations?.injuriesFor(r.id)||[];
@@ -234,7 +239,7 @@ try{
   const grade=gradeFor(radarEvaluation);
   const markup=`<section class="panel report-head team-scout-card" ${clubStyle(r.team)}><span class="eyebrow">PLAYER REPORT · 자체 분석</span><h2>${playerHeading(r)}</h2><p>${teamText(r.team)} · ${esc(KBOCore.positionText(r.position))} · ${r.age===null?'나이 미확인':'연 나이 '+r.age+'세 (시즌 연도−출생 연도)'} · ${s.pa}타석</p><div class="cards"><div class="metric"><small>타석</small><strong>${s.pa}</strong><span class="benchmark">${esc(paReference(r))}</span></div>${basicStats.map(k=>`<div class="metric"><small>${statNames[k]}</small><strong>${fmt(s[k])}</strong><span class="benchmark">그해 리그 평균 ${fmt(l[k])}</span></div>`).join('')}<div class="metric"><small>리그 대비 OPS 지수</small><strong>${fmt(r.index,1)}</strong><span class="benchmark">리그 평균 100</span></div><div class="metric"><small>추정 wRC</small><strong>${fmt(s.wrc,1)}점</strong><span class="benchmark">100타석당 ${fmt(s.wrcPer100,2)}점 · 리그 평균 ${fmt(l.wrcPer100,2)}점</span></div><div class="metric"><small>전년도 대비 상대 OPS 변화</small><strong>${Number.isFinite(change)?fmt(change,1)+'%':'—'}</strong><span class="benchmark">${esc(growthText)} · 양쪽 시즌 ${min}타석 이상 · 예측 아님</span></div></div></section>
   ${!peerOnly&&importedPeers.length>0?`<section class="panel report-comparison"><h2>선택 선수 비교 · 선수별 리포트 · ${1+importedPeers.length}명</h2><p class="hint">이중 테두리: 기준 선수 · 카드색: 시즌 소속 구단</p><div class="scout-player-grid">${[r,...importedPeers].map(x=>{const base=primary(x),lx=engine.league.get(x.year);return `<article class="compare-player-card team-scout-card ${base?'is-primary':''}" ${clubStyle(x.team)}><div class="compare-player-heading"><span class="role-pill">${base?'처음 선택한 기준 선수':'비교 선수'}</span><strong>${playerHeading(x)}</strong><span class="hint">${esc(KBOCore.positionText(x.position))}</span></div><div class="compare-player-metrics"><div><small>타석</small><strong>${x.stats.pa}</strong><span>${esc(paReference(x))}</span></div><div><small>타율</small><strong>${fmt(x.stats.avg)}</strong><span>리그 평균 ${fmt(lx.avg)}</span></div><div><small>출루율</small><strong>${fmt(x.stats.obp)}</strong><span>리그 평균 ${fmt(lx.obp)}</span></div><div><small>장타율</small><strong>${fmt(x.stats.slg)}</strong><span>리그 평균 ${fmt(lx.slg)}</span></div><div><small>OPS</small><strong>${fmt(x.stats.ops)}</strong><span>리그 평균 ${fmt(lx.ops)}</span></div><div><small>홈런율 (HR/PA)</small><strong>${fmt(100*x.stats.hr,2)}%</strong><span>시즌 실제 기록</span></div><div><small>리그 대비 OPS</small><strong>${fmt(x.index,1)}</strong><span>리그 평균 100</span></div><div><small>추정 wRC</small><strong>${fmt(x.stats.wrc,1)}</strong><span>100PA당 ${fmt(x.stats.wrcPer100,2)} · 리그 평균 ${fmt(lx.wrcPer100,2)}</span></div></div></article>`;}).join('')}</div>${comparisonChart([r,...importedPeers])}</section>`:''}
-  <section class="panel report-assessment team-scout-card" ${clubStyle(r.team)}><h2>1. 강점·약점 · 상대평가</h2>${positionNote}${missingScoreNote}${comparisonChart([r],!peerOnly&&!importedPeers.length)}<div class="grid"><div><h3>그해 리그 평균 대비 차이 (%)</h3>${V.bars(delta,'선수/리그 평균 − 1',{max:0})}</div><div><h3>비교군 내 위치</h3>${V.scatter([...sample,r].map(x=>({x:x.stats.pa,y:x.index,label:label(x),selected:x===r})),'타석','리그 대비 OPS 지수')}<p class="hint">${pool.length>300?`비교군 ${sample.length}개 점 표시 · 계산은 전체 표본`:'비교군 전체 표시'}</p></div></div></section>
+  <section class="panel report-assessment team-scout-card" ${clubStyle(r.team)}><h2>1. 강점·약점 · 상대평가</h2>${positionNote}${missingScoreNote}${showIndividualRadar?comparisonChart([r],!peerOnly&&!importedPeers.length):''}<div class="grid"><div><h3>그해 리그 평균 대비 차이 (%)</h3>${V.bars(delta,'선수/리그 평균 − 1',{max:0})}</div><div><h3>비교군 내 위치</h3>${V.scatter([...sample,r].map(x=>({x:x.stats.pa,y:x.index,label:label(x),selected:x===r})),'타석','리그 대비 OPS 지수')}<p class="hint">${pool.length>300?`비교군 ${sample.length}개 점 표시 · 계산은 전체 표본`:'비교군 전체 표시'}</p></div></div></section>
   <section class="panel report-trend team-scout-card" ${clubStyle(r.team)}><h2>2. 선택 시즌 타격 기록</h2><p>${esc(label(r))} · ${s.pa}타석</p><p class="hint">${esc(paReference(r))} · 타석은 충족자 산술평균, 타격 비율은 충족자 기록을 합산해 계산. 1~2타석 등 기준 미달 기록은 평균에서 제외</p>${table(['지표','선수 기록',`${r.year}년 리그 평균 (규정 타석 충족자)`],[['타석 · 규정 충족자 평균',String(s.pa),fmt(l.qualifyingPA.average,1)],...['avg','obp','slg','ops','hr'].map(k=>[k==='hr'?'홈런/타석 (%)':statNames[k],fmt(k==='hr'?s[k]*100:s[k]),fmt(k==='hr'?l[k]*100:l[k])])])}</section>
   <section class="panel report-similar team-scout-card" ${clubStyle(r.team)}><h2>3. 유사선수 TOP 5</h2>${similar.length?`<table class="similar-compact"><thead><tr><th>선수 · POS · 시즌</th><th>유사 점수</th><th>ΔOPS</th><th>ΔK%</th></tr></thead><tbody>${similar.map(c=>`<tr><td title="${esc(similarLabel(c.row))}">${esc(c.row.name)} ${esc(positionLabel(c.row))} ${c.row.year}</td><td>${fmt(c.score,1)}</td><td>${fmt(c.differences.opsIndex,1)}</td><td>${fmt(c.differences.k,1)}</td></tr>`).join('')}</tbody></table><p class="hint">LF 좌익수 · CF 중견수 · RF 우익수 · OF 외야수<br>ΔOPS: OPS 지수 차이 · ΔK%: 삼진률 차이(%p) · 후보−선수</p>${V.scatter([r,...similar.map(c=>c.row)].map(x=>({x:x.relative.power,y:x.relative.production,label:similarLabel(x),selected:x===r})),'ISO / 그해 리그 ISO','OPS / 그해 리그 OPS')}`:'<p class="hint">비교 가능한 과거 기록 부족</p>'}</section>
   ${observations.length?`<section class="panel report-notes team-scout-card" ${clubStyle(r.team)}><h2>4. 기사 기반 스카우팅 의견</h2>${observationHTML}</section>`:''}<section class="panel report-injuries team-scout-card" ${clubStyle(r.team)}><h2>주의사항 · 공개 부상 이력</h2>${injuryHTML}<p><a href="https://www.koreabaseball.com/Record/Player/HitterDetail/Basic.aspx?playerId=${encodeURIComponent(r.id)}" target="_blank" rel="noopener noreferrer">KBO 공식 선수 기록 ↗</a> · <a href="https://search.naver.com/search.naver?where=news&amp;query=${encodeURIComponent(r.name+" KBO 야구 부상")}" target="_blank" rel="noopener noreferrer">선수 부상 보도 검색 ↗</a></p><p class="hint">KBO는 2020년 부상 선수 보호를 위해 부상자명단 제도를 도입했습니다. 도입 당시 구단은 정규시즌 경기나 훈련 중 다친 등록 선수에 대해 10일·15일·30일 중 하나를 선택해 등재를 신청할 수 있었으며, 등재 기간은 현역선수 등록일수로 인정됐습니다. 공식 선수 기록의 엔트리 표에서 ‘부상자명단’으로 표시된 기간을 확인할 수 있습니다. 2020년 이전 이력은 당시 구단 발표나 보도를 참고하세요. <a href="https://www.koreabaseball.com/MediaNews/Notice/View.aspx?bdSe=7651" target="_blank" rel="noopener noreferrer">KBO 도입 공지 ↗</a></p><p class="hint">보도 당시의 출전·회복 이력을 참고하세요. 현재 상태와 타격 참고 등급은 별도로 확인해야 합니다.</p></section>${KBOScoutingContext.render(r,grade).replace('<section class="panel">',`<section class="panel context-card team-scout-card" ${clubStyle(r.team)}>`)}`;
@@ -297,6 +302,7 @@ try{
  }
  $('controls').onsubmit=e=>e.preventDefault();
  $('year').onchange=()=>{
+  searchPeer=null;
   $('search').value='';
   populatePlayers();
   renderReport();
@@ -321,7 +327,7 @@ try{
    ? `<p role="status">보유 데이터의 ${scopeLabel} 타격 기록에 일치하는 선수가 없습니다. 아래에서 기록이 있는 시즌을 선택하세요.</p>`
    : '';
   results.innerHTML=candidates.length
-   ? hint+(fallback||multiSeason?candidates:candidates.slice(0,4)).map(r=>{
+   ? hint+candidates.map(r=>{
     const text=`${label(r)} · ${KBOCore.positionText(r.position)}`;
     const width=[...text].reduce((sum,c)=>sum+(/[가-힣]/.test(c)?1:c===' '||c==='·'?.4:.85),0);
     return `<button type="button" data-search-player="${esc(r.id)}" data-search-year="${r.year}" style="--label-width:${width.toFixed(2)}">${esc(text)}</button>`;
@@ -329,6 +335,12 @@ try{
    : '<p role="status">보유 기록에서 검색 결과 없음</p>';
   results.querySelectorAll('[data-search-player]').forEach(button=>button.onclick=()=>{
    const row=engine.lookup.get(`${button.dataset.searchPlayer}|${button.dataset.searchYear}`);
+   if(imported.includes(row)){
+    searchBase=searchPeer=null;
+   }else{
+    searchBase ??= engine.lookup.get(`${$('player').value}|${$('year').value}`) || row;
+    searchPeer=row===searchBase?null:row;
+   }
    $('year').value=String(row.year);
    $('search').value=row.name;
    populatePlayers(button.dataset.searchPlayer);
@@ -339,10 +351,6 @@ try{
    note.hidden=!fallback;
    if(fallback)note.textContent=`보유 데이터에 ${row.name}의 ${scopeLabel} 타격 기록이 없어 ${row.year}년 기록을 열었습니다.`;
   });
-  if (!candidates.length) {
-   $('player').value='';
-   renderReport();
-  }
  }
  $('controls').onsubmit=e=>e.preventDefault();
  $('search').oninput=()=>{$('lab-search-note').hidden=true;showSearchResults();};
@@ -352,6 +360,10 @@ try{
   if(e.isComposing||results.hidden)return;
   const first=results.querySelector('[data-search-player]');
   if(e.key==='ArrowDown'&&first){e.preventDefault();first.focus();}
+  if(e.key==='ArrowUp'&&first){
+   e.preventDefault();
+   [...results.querySelectorAll('[data-search-player]')].at(-1).focus();
+  }
   if(e.key==='Enter'&&first){e.preventDefault();first.click();}
  };
  $('search').onfocus=showSearchResults;
@@ -362,12 +374,31 @@ try{
   };
  }
  $('lab-search-results').onkeydown=e=>{
-  if(e.key!=='Escape')return;
-  $('search').focus();
-  $('lab-search-results').hidden=true;
+  if(e.isComposing)return;
+  const results=$('lab-search-results');
+  if(e.key==='Escape'){
+   e.preventDefault();
+   $('search').focus();
+   results.hidden=true;
+   return;
+  }
+  const buttons=[...results.querySelectorAll('[data-search-player]')];
+  const index=buttons.indexOf(e.target);
+  if(index<0)return;
+  if(e.key==='Enter'){
+   e.preventDefault();
+   buttons[index].click();
+  }
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+   e.preventDefault();
+   const next=index+(e.key==='ArrowDown'?1:-1);
+   if(next<0)$('search').focus();
+   else buttons[next]?.focus();
+  }
  };
  $('minpa').onchange=()=>{manualMinPA=true;renderReport();};
- for(const id of ['player','era','group'])$(id).onchange=()=>{renderReport();};
+ $('player').onchange=()=>{searchBase=searchPeer=null;renderReport();};
+ for(const id of ['era','group'])$(id).onchange=()=>{renderReport();};
  $('grade-year').onchange=$('grade-filter').onchange=renderGrades;
  $('finder').onsubmit=e=>{e.preventDefault();renderCandidates();};
  $('finder').onchange=e=>{

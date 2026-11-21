@@ -60,7 +60,9 @@ test('대시보드 실제 데이터 렌더·필터·빈 검색·PDF 명령',asyn
  assert.equal(e.$('span'),undefined);
  e.$('group').value='age';e.$('group').change();assert.match(e.$('report').textContent,/비교 표본 부족/);
  e.$('print').click();assert.equal(e.prints(),1);
- e.$('search').value='없는선수';e.$('search').oninput();assert.match(e.$('report').textContent,/검색 결과 없음/);assert.equal(e.$('print').disabled,true);
+ e.$('search').value='없는선수';e.$('search').oninput();
+ assert.match(e.$('lab-search-results').textContent,/검색 결과 없음/);
+ assert.match(e.$('report').textContent,/이정후/);assert.equal(e.$('print').disabled,false);
 });
 test('후보 탐색·가중치 오류·후보에서 리포트 이동',async()=>{
  const e=await app();e.$('tab-finder').click();assert.equal(e.$('player-page').hidden,true);assert.ok(e.$('candidates').querySelectorAll('[data-open]').length>0);
@@ -199,7 +201,7 @@ test('선택 시즌에 없으면 보유 시즌을 제안하고 선수·시즌을
  assert.match(e.$('report').textContent,/이정후/);
 });
 
-test('빈 검색은 숨기고 성씨 초성·첫 글자에 맞는 후보를 최대 네 명 표시',async()=>{
+test('빈 검색은 숨기고 성씨 초성·첫 글자에 맞는 후보를 표시',async()=>{
  const e=await app('?year=2022');
  const search=e.$('search'), results=e.$('lab-search-results');
  search.onfocus();
@@ -208,9 +210,46 @@ test('빈 검색은 숨기고 성씨 초성·첫 글자에 맞는 후보를 최�
   search.value=query;
   search.oninput();
   const buttons=results.querySelectorAll('[data-search-player]');
-  assert.equal(buttons.length,4);
+  assert.ok(buttons.length>4);
   for(const button of buttons)assert.match(button.textContent,pattern);
  }
+});
+
+test('방향키와 Enter로 선수를 고르고 다음 검색 선수를 한 레이더에서 비교', async () => {
+ const e = await app('?year=2024');
+ const search = e.$('search'), results = e.$('lab-search-results');
+ let focused;
+ search.focus = () => { focused = search; };
+ const key = (control, value) => control.onkeydown({key:value, target:focused, preventDefault(){}});
+ const query = value => {
+  search.value = value;
+  search.oninput();
+  focused = search;
+  const buttons = results.querySelectorAll('[data-search-player]');
+  for (const button of buttons) button.focus = () => { focused = button; };
+  return buttons;
+ };
+ const kim = query('김');
+ const index = kim.findIndex(button => button.textContent.startsWith('김지찬'));
+ assert.ok(index>0);
+ key(search, 'ArrowDown');
+ for(let i=0;i<index;i++) key(results, 'ArrowDown');
+ assert.equal(focused, kim[index]);
+ key(results, 'ArrowUp');
+ assert.equal(focused, kim[index-1]);
+ key(results, 'ArrowDown');
+ key(results, 'Enter');
+ assert.match(panels(e, 'report-head')[0].textContent, /김지찬/);
+ query('구자욱');
+ key(search, 'ArrowDown');
+ key(results, 'Enter');
+ const comparison = panels(e, 'report-comparison')[0];
+ const cards = comparison.querySelectorAll('article');
+ assert.match(cards[0].textContent, /김지찬/);
+ assert.match(cards[1].textContent, /구자욱/);
+ assert.equal(panels(e, 'report-assessment').length, 2);
+ assert.equal(comparison.querySelectorAll('svg').length, 1);
+ assert.equal(comparison.querySelector('svg').querySelectorAll('circle').length, 10);
 });
 
 test('전체 시즌과 10년 단위로 검색한 뒤 실제 선수 시즌을 열 수 있음',async()=>{

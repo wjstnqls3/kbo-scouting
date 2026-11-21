@@ -85,9 +85,12 @@
 }
 .season-dropdown {
   min-width:0;
-  border:1px solid #b2d5c6;
+  border:1px solid transparent;
   border-radius:8px;
   background:#fff;
+}
+.season-dropdown:has(> summary > [data-decade-count]:not([hidden])) {
+  border-color:#b2d5c6;
 }
 .season-dropdown > summary {
   cursor:pointer;

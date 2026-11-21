@@ -53,7 +53,7 @@ function parse(html,parent){
   }
 }
 async function app(locationOverrides={}){
-  const doc=new Element('document');parse(fs.readFileSync(path.join(root,'index.html'),'utf8').replace(/<script[\s\S]*?<\/script>/g,'').replace(/<style[\s\S]*?<\/style>/g,''),doc);
+  const doc=new Element('document');parse(fs.readFileSync(path.join(root,'legacy-records.html'),'utf8').replace(/<script[\s\S]*?<\/script>/g,'').replace(/<style[\s\S]*?<\/style>/g,''),doc);
   doc.getElementById=id=>descendants(doc).find(e=>e.attrs.id===id)||null;
   doc.createElement=tag=>new Element(tag);
   const errors=[],downloads=[];

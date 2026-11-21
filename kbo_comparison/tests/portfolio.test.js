@@ -52,7 +52,7 @@ test('탐색 → 후보 선택 → 기존 화면 연결 → 메모 저장 및 �
   let prints = 0;
   async function open() {
     const document = new Element('document');
-    parse(file('scouting-portfolio.html').replace(/<script[\s\S]*?<\/script>/g,''),document);
+    parse(file('legacy-portfolio.html').replace(/<script[\s\S]*?<\/script>/g,''),document);
     const $ = id => descendants(document).find(e=>e.attrs.id===id);
     document.getElementById = $;
     const getNumeric = Object.getOwnPropertyDescriptor(Element.prototype,'valueAsNumber');

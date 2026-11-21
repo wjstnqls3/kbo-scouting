@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const {Element,parse,descendants}=require('./dom-fixture');
 const root=path.resolve(__dirname,'..');
 async function app(search='?id=67341&year=2022'){
- const doc=new Element('document');parse(fs.readFileSync(path.join(root,'scouting-dashboard.html'),'utf8').replace(/<script[\s\S]*?<\/script>/g,''),doc);
+ const doc=new Element('document');parse(fs.readFileSync(path.join(root,'legacy-dashboard.html'),'utf8').replace(/<script[\s\S]*?<\/script>/g,''),doc);
  doc.getElementById=id=>descendants(doc).find(e=>e.attrs.id===id);const errors=[];let prints=0;
  const context={document:doc,KBOContractData:require('../contract-data'),KBOScoutingObservations:require('../scouting-observations'),KBOAnalytics:require('../analytics'),KBOScouting:require('../scouting'),KBOParks:require('../parks'),KBOCore:require('../core'),KBORepository:{load:async()=>({records:require('../sample_data.json'),metadata:{}})},location:{search},URLSearchParams,window:{print:()=>prints++},console:{error:e=>errors.push(e)}};
  vm.createContext(context);vm.runInContext(fs.readFileSync(path.join(root,'charts.js'),'utf8'),context);vm.runInContext(fs.readFileSync(path.join(root,'scouting-context.js'),'utf8'),context);await vm.runInContext(fs.readFileSync(path.join(root,'dashboard.js'),'utf8'),context);

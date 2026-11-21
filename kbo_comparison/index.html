@@ -1,86 +1,86 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KBO 타자 기록 비교</title><style>
-*{box-sizing:border-box}body{margin:0;background:#f4f7f5;color:#172b24;font:16px system-ui,sans-serif}main{max-width:1100px;margin:auto;padding:35px 20px}h1{margin-bottom:8px}h2{font-size:21px}p,.hint{color:#526b60;line-height:1.6}.panel{background:white;padding:22px;border:1px solid #dce6df;border-radius:12px;margin:20px 0;overflow:auto}label{display:inline-block;margin:8px 16px 8px 0;font-weight:600}select,input,button{font:inherit;padding:9px;border:1px solid #bdcec2;border-radius:6px}button{background:#166143;color:white;cursor:pointer}button:disabled{background:#9baea3;cursor:not-allowed}table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:14px}th,td{text-align:right;padding:10px;border-bottom:1px solid #e4ece6}th:first-child,td:first-child{text-align:left}th button{background:none;color:#315d49;border:0;padding:0;font-weight:700}.warning{background:#fff6de;padding:14px;border-radius:8px;color:#664f1c}.error{color:#a0392b}.grid{display:flex;flex-wrap:wrap;gap:8px}.selection{display:flex;align-items:center;gap:8px;margin:10px 0;flex-wrap:wrap}a{color:#166143}
-.position-filter{border:0;padding:0;margin:12px 0;display:flex;flex-wrap:wrap;gap:6px}.position-filter legend{font-weight:700;margin-bottom:6px}.position-filter label{margin:0;cursor:pointer}.position-filter input{position:absolute;opacity:0}.position-filter span{display:inline-block;padding:7px 12px;border:1px solid #bdcec2;border-radius:20px}.position-filter input:checked+span{background:#166143;color:white;border-color:#166143}.position-filter input:focus-visible+span{outline:3px solid #83b69b;outline-offset:2px}.team-best{color:#1557a6;background:#e6f1ff;font-weight:800}.gold.team-best{color:#835d00;background:#fff0b5;box-shadow:inset 0 0 0 2px #3182ce}.gold{color:#835d00;background:#fff0b5;font-weight:800}.best{color:#bb2727;font-weight:700}.lowest{color:#1557a6;font-weight:700}.best.lowest{color:#bb2727;background:#dcecff}
-
-.legend{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 20px}.badge{display:inline-flex;align-items:center;gap:8px;padding:9px 13px;border-radius:9px;border:1px solid #dde5df;font-size:13px;font-weight:650}.badge .sample{padding:3px 8px;border-radius:5px;font-variant-numeric:tabular-nums}.neutral{background:#f1f5f2;color:#4b6256}.toggle-card{display:inline-flex;align-items:center;gap:9px;padding:12px 15px;border:2px solid transparent;border-radius:10px;cursor:pointer}.toggle-card:has(input:checked){border-color:currentColor;box-shadow:0 2px 7px #1a392414}.toggle-card input{width:18px;height:18px;accent-color:#166143}.position-filter{background:#f6f8f6;border:1px solid #e0e8e1;border-radius:10px;padding:12px}.position-filter legend{padding:0 7px;font-size:14px}tbody tr:hover{background:#f5f9f6}h2{display:flex;align-items:center;gap:10px}.panel{box-shadow:0 4px 15px #203b2805}#target>p{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#eef6f0;border-left:4px solid #166143;padding:12px;border-radius:6px}summary{cursor:pointer;padding:12px 0;font-weight:600}#download{margin-top:16px}
-.secondary{background:#eef5f0;color:#27553e}.settings{padding:10px 16px;border:1px solid #dce6df;border-radius:9px;margin:16px 0}.weight-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}.weight-grid label{display:flex;align-items:center;justify-content:space-between;margin:4px}.weight-grid input{width:66px}.chip{border-radius:18px;background:#e7f2ea;color:#24513a;padding:7px 11px;font-size:13px}.table-wrap{overflow:auto}button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #8bbd9d;outline-offset:3px}.meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}.meta-grid div{padding:12px;background:#f4f7f4;border-radius:8px}.meta-grid small{display:block;color:#526b60;margin-bottom:5px}.target-card{background:#edf6ef;padding:12px;border-radius:8px;margin:10px 0;display:flex;gap:12px;align-items:center;flex-wrap:wrap}.target-card label{margin:0}.recommend-group{margin:18px 0}.recommend-group h3{font-size:16px}.badge{line-height:1.5}#filter-chips:empty{display:none}@media(max-width:600px){main{padding:20px 12px}.panel{padding:16px}h1{font-size:24px}.position-filter span{padding:7px 9px}}
-
-body.intro-active main{display:none}body:not(.intro-active):not(.intro-opening) .intro-hero{display:none}body.intro-opening{overflow:hidden}body.intro-opening .intro-hero{position:fixed;inset:0;z-index:100;min-height:100svh;pointer-events:none}body.intro-opening .intro-art,body.intro-opening .intro-hero:after{opacity:0}body.intro-opening .intro-content{opacity:0;transition:opacity .2s}.intro-door{display:none}body.intro-opening .intro-door{display:block;position:absolute;top:0;bottom:0;width:50%;background-image:linear-gradient(0deg,rgba(5,24,17,.45),rgba(5,24,17,.15)),url("assets/kbo-featured-players.png");background-size:200% 100%;background-repeat:no-repeat;transition:transform .85s cubic-bezier(.65,0,.35,1)}body.intro-opening .intro-door.left{left:0;background-position:left center;transform:translateX(-100%)}body.intro-opening .intro-door.right{right:0;background-position:right center;transform:translateX(100%)}.intro-hero{position:relative;isolation:isolate;display:flex;align-items:flex-end;min-height:100vh;min-height:100svh;overflow:hidden;background:#102b22;color:#fff}
-.intro-art{position:absolute;inset:0;z-index:-2;background:url('assets/kbo-featured-players.png') center 38%/cover no-repeat;animation:intro-pan 9s ease-out both}
-.intro-hero:after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,rgba(5,24,17,.92),rgba(5,24,17,.43) 62%,rgba(5,24,17,.18)),linear-gradient(0deg,rgba(5,24,17,.85),transparent 60%)}
-.intro-content{width:min(1100px,100%);margin:auto;padding:110px 24px 72px;animation:intro-rise 1s ease-out both}.intro-kicker{color:#e9c56c;letter-spacing:.2em;font-size:12px;font-weight:800}.intro-content h1{max-width:700px;margin:18px 0;font-size:clamp(38px,6vw,76px);line-height:1.14;letter-spacing:-.05em}.intro-content p{color:#e1ebe4;max-width:490px;font-size:17px}.intro-start{display:inline-flex;align-items:center;gap:18px;margin-top:20px;padding:15px 22px;background:#f1d58f;color:#183a2c;text-decoration:none;border-radius:8px;font-weight:800}.intro-start:focus-visible{outline:3px solid white;outline-offset:4px}.intro-caption{display:block;margin-top:22px;color:#dae6de;font-size:12px}.intro-scroll{scroll-margin-top:16px}@keyframes intro-pan{from{transform:scale(1.12)}to{transform:scale(1)}}@keyframes intro-rise{from{opacity:0;transform:translateY(25px)}to{opacity:1;transform:translateY(0)}}@media(max-width:600px){.intro-hero{min-height:100vh;min-height:100svh}.intro-art{background-position:52% center}.intro-content{padding:100px 20px 55px}.intro-content h1{font-size:40px}.intro-content p{font-size:15px}}@media(prefers-reduced-motion:reduce){.intro-art,.intro-content{animation:none}html{scroll-behavior:auto}}@media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
-.position-filter .club-label,.club-badge{background:var(--club-color,#526b60);border-color:var(--club-color,#526b60);color:#fff}.position-filter input:checked+.club-label{background:var(--club-color,#526b60);border-color:var(--club-color,#526b60);color:#fff;box-shadow:0 0 0 3px #fff,0 0 0 5px var(--club-color,#526b60);font-weight:800}.position-filter input:checked+.club-label:before{content:"✓ ";font-weight:900}.club-badge{display:inline-block;border-radius:6px;padding:3px 8px;font-weight:700}
-
-.scout-card{border-top:1px solid #dce6df;padding:18px 0}.scout-card h3 small{font-weight:400;color:#526b60;font-size:.8em}.scout-card h4{margin:25px 0 4px}.scout-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}.scout-summary div{background:#eef6f0;border-radius:8px;padding:12px}.scout-summary small,.scout-summary strong{display:block}.scout-summary strong{font-size:1.4rem}.trend-row{display:grid;grid-template-columns:52px 1fr 50px;align-items:center;gap:10px;margin:9px 0}.trend-track{background:#e5eee7;border-radius:8px;height:14px;overflow:hidden}.trend-bar{height:100%;background:#27815b;border-radius:8px}
-.home-navigation{display:flex;gap:12px;margin-bottom:18px}.home-navigation a{display:inline-flex;padding:9px 14px;border:1px solid #bdcec2;border-radius:8px;background:#eef5f0;color:#166143;text-decoration:none;font-weight:700}.home-navigation a:focus-visible{outline:3px solid #b68c32;outline-offset:3px}.comparison-title{text-align:center;margin:12px auto 22px}#scouting-results .intro-start{margin-top:4px}.intro-actions{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:12px;margin-top:20px}
-.intro-actions .button-primary{display:inline-flex;align-items:center;justify-content:center;min-height:48px;margin:0;padding:10px 18px}
-.legend .badge{border:0;border-radius:0;background:transparent;box-shadow:none;padding:3px 8px;cursor:default}
-.comparison-context{display:flex;flex-wrap:wrap;gap:8px 18px;color:#526b60;font-size:13px;margin:8px 0 16px}
-</style><style>
-.intro-art{background-image:url('assets/kbo-players-upper.png'),url('assets/kbo-players-lower.png');background-size:100% 52%,100% 52%;background-position:center top,center bottom;background-repeat:no-repeat}
-body.intro-opening .intro-door{background-image:linear-gradient(0deg,rgba(5,24,17,.45),rgba(5,24,17,.15)),url('assets/kbo-players-lower.png'),url('assets/kbo-players-upper.png');background-size:100% 100%,200% 50%,200% 50%;background-repeat:no-repeat}
-body.intro-opening .intro-door.left{background-position:center,left bottom,left top}
-body.intro-opening .intro-door.right{background-position:center,right bottom,right top}
-@media(max-width:600px){.intro-art{background-size:auto 52%,auto 52%;background-position:center top,center bottom}}
-html,body{width:100%;min-height:100%;background:#102b22}body.intro-active{width:100%;height:100vh;height:100dvh;min-height:100vh;min-height:100dvh;overflow:hidden}body.intro-active .intro-hero{position:fixed;inset:0;z-index:10;width:100vw;height:100vh;height:100dvh;min-height:0}body.intro-opening .intro-hero{height:100vh;height:100dvh}
-</style>
-<link rel="stylesheet" href="mongodb-theme.css?v=position-groups">
-  <link rel="stylesheet" href="button-hover.css?v=hover-45">
-<style>
-@media (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
-  summary.summary-zoom:hover{scale:none;transform:none}
-  .summary-zoom-label{font-size:1em;transition:font-size 150ms ease-out}
-  .summary-zoom:hover .summary-zoom-label{font-size:1.04em}
-}
-</style>
-<link rel="stylesheet" href="page-navigation.css?v=decade-count-conditional">
-</head><body class="intro-active"><header class="intro-hero"><div class="intro-door left" aria-hidden="true"></div><div class="intro-door right" aria-hidden="true"></div><div class="intro-art" aria-hidden="true"></div><div class="intro-content"><span class="intro-kicker">THE STORY BEHIND THE NUMBERS</span><h1>기록으로 만나는 우리의 타자들</h1><p>시대별 타격 기록 · 유사선수 탐색</p><div class="intro-actions"><a class="intro-start button-primary" href="#comparison-start">기록 비교 시작하기 <span aria-hidden="true">→</span></a><a class="button-primary" href="scouting-portfolio.html">스카우팅 검토 후보 찾기</a><a class="button-primary" href="scouting-dashboard.html">스카우팅 랩</a></div><small class="intro-caption">LG 박해민 · 두산 곽빈 · SSG 김광현 · 삼성 구자욱 · NC 박민우 · KT 안현민 · 롯데 윤동희 · KIA 김도영 · 한화 노시환 · 키움 안우진</small></div></header><main id="comparison-start" class="intro-scroll" tabindex="-1"><nav class="home-navigation" aria-label="화면 이동"><a href="#intro">← 시작 화면</a><a href="scouting-portfolio.html">스카우팅 검토</a><a href="scouting-dashboard.html">스카우팅 랩</a></nav><h1 class="comparison-title">⚾ KBO 타자 기록 비교</h1><p>선택 시즌 기록 비교</p><p class="comparison-context"><span>선택 시즌 기록 기준</span><span>성적 비교 · 예측 아님</span></p><details class="panel"><summary class="summary-zoom"><span class="summary-zoom-label">📂 자료 정보 <span id="data-status" class="badge neutral">확인 중</span></span></summary><div id="data-info"></div></details>
-<section class="panel"><h2>1. 대상 선수 찾기</h2><details class="settings"><summary class="summary-zoom"><span class="summary-zoom-label">📖 기록 용어 보기</span></summary><div class="legend"><span class="badge neutral">2루타·3루타 · 안타로 2루·3루 도달</span><span class="badge neutral">타점 · 타격으로 주자가 득점한 수</span><span class="badge neutral">득점 · 홈에 들어온 횟수</span><span class="badge neutral">도루성공% · 도루 ÷ 도루 시도</span><span class="badge neutral">볼넷 · 공 4개로 출루</span><span class="badge neutral">삼진 · 스트라이크 3개</span><span class="badge neutral">BB% · 타석 중 볼넷 비율</span><span class="badge neutral">K% · 타석 중 삼진 비율</span><span class="badge neutral">BB/K · 삼진 대비 볼넷</span><span class="badge neutral">OPS · 출루율 + 장타율</span><span class="badge neutral">ISO · 순수 장타력</span><span class="badge neutral">BABIP · 홈런 제외 인플레이 타구의 안타 비율</span></div><p class="hint">최고 기록 = 최댓값 · K%·삼진은 낮을수록 유리</p></details><div class="legend" aria-label="최고 기록 색상 안내"><span class="badge"><span class="sample gold">🏆</span> 리그 최고</span><span class="badge"><span class="sample team-best">🥇</span> 구단 최고</span><span class="badge"><span class="sample gold team-best">★</span> 둘 다 (리그 최고·구단 최고)</span><span class="badge neutral">↕ 열 클릭 정렬</span><span class="badge neutral">✓ 비율: 규정 타석</span></div><div class="season-name-layout"><fieldset class="position-filter" id="browse-years"><legend>시즌 · 연대별 선택</legend><label><input type="checkbox" id="browse-all-years"><span>전체 시즌</span></label><div id="browse-year-options" style="display:contents"></div></fieldset><div class="direct-player-search"><label for="search">이름으로 선수 검색</label><input id="search" type="search" placeholder="이름 또는 초성 · 예: 이정후, ㅇㅈㅎ" autocomplete="off" aria-controls="name-suggestions" aria-expanded="false"><div id="name-suggestions" class="name-suggestions" aria-label="이름 검색 결과" hidden></div><select id="player" hidden aria-label="선택한 선수"><option value="">선수 선택</option></select><div id="direct-selection" class="direct-selection" hidden><strong id="direct-player-name"></strong><label>시즌 선택 <select id="season"></select></label><button class="button-primary" id="add-direct-target" type="button">대상 추가</button></div></div></div><p id="qualification-info" class="hint" aria-live="polite"></p><fieldset class="position-filter" id="browse-teams"><legend>구단</legend></fieldset><label>구단 검색 기준 <select id="browse-team-scope"><option value="season">선택 시즌 소속</option><option value="career">전체 경력 구단</option></select></label><p id="team-scope-info" class="hint" aria-live="polite"></p><label class="gold toggle-card"><input type="checkbox" id="browse-leaders"> 최고 기록 선수만 보기</label><label class="team-best toggle-card"><input type="checkbox" id="browse-team-leaders"> 구단별 최고 기록</label><fieldset class="position-filter" id="browse-positions"><legend>포지션</legend></fieldset><div class="legend"><span class="badge neutral">▦ 내야수 → 1루수·2루수·3루수·유격수 · ▦ 외야수 → 좌익수·중견수·우익수</span><span class="badge neutral">경기 수: 강조 제외</span></div><div class="selection"><label>🏆 최고 기록 기준 <select id="leader-scope"><option value="period">선택 기간 최고</option><option value="year">연도별 최고</option></select></label><button id="reset-filters" type="button" class="secondary">필터 초기화</button></div><div id="filter-chips" class="legend" aria-label="선택 조건"></div><div id="browse-results" aria-live="polite"></div><p id="target-message" class="error" role="status"></p><div id="target"></div></section>
-<section class="panel"><h2>2. 유사선수</h2><details class="settings"><summary>⚖️ 추천 지표 · 비중 <span id="weight-summary" class="badge neutral"></span></summary><form id="weight-form"><div id="weight-inputs" class="weight-grid"></div><p class="hint">0 = 제외 · 1~10 = 비중 · 선택 지표의 차이를 정규화해 가중 평균</p><div class="selection"><button type="submit">적용</button><button id="reset-weights" type="button" class="secondary">동일 비중</button></div><p id="weight-message" class="error" role="status"></p></form></details><label>추천 비교 시즌<select id="recommend-year"></select></label><p class="hint">선택한 한 시즌 기록으로 추천 목록을 다시 계산합니다.</p><p class="hint">확인된 수비 위치는 모두 표시 · 세부 자료 없으면 외야수 · ▦ 내야수·외야수 클릭 → 해당 포지션 함께 선택 · 다시 클릭 → 함께 해제 · <a href="docs/외야포지션_기준.md">확인 범위·출처</a></p><fieldset class="position-filter" id="compare-positions"><legend>비교 선수 포지션</legend></fieldset><fieldset class="position-filter" id="compare-teams"><legend>비교 선수 구단</legend></fieldset><p class="hint">다중 선택 · 추천/검색: 선택 연도의 포지션 · 구단: 경력 기준</p><div class="selection"><label>비교 선수 검색 <input id="compare-search" placeholder="선수 이름"></label><label>선수 <select id="compare-player"><option value="">선수 선택</option></select></label><button class="button-primary" id="add-player" type="button">비교 선수 추가</button></div><p id="compare-message" class="hint" aria-live="polite"></p><p class="hint">BB%·K%: 타석 대비 백분율 · BB/K: 볼넷 ÷ 삼진</p><div id="recommendations">대상 선수 선택 필요</div></section>
-<section class="panel" id="final-comparison"><div class="comparison-heading"><h2>3. 최종 성적 비교</h2><div id="scouting-results" aria-live="polite" hidden></div></div><div class="legend" aria-label="비교표 색상 예시"><span class="badge"><span class="sample best">▲</span> 최고 · 비교 선수 중 가장 높은 값</span><span class="badge"><span class="sample lowest">▼</span> 최저 · 비교 선수 중 가장 낮은 값</span><span class="badge"><span class="sample best lowest">＝</span> 동률 · 비교 선수 모두 같은 값</span></div><p class="hint">공동값 모두 표시 · 선택 시즌 비율 비교는 규정 타석 미적용</p><p id="comparison-message" class="error" role="status"></p><div id="comparison">비교 선수 선택 필요</div><button class="button-primary" id="download" disabled>CSV 내려받기</button></section></main><script>
-(function () {
-  const hero = document.querySelector('.intro-hero');
-  const link = document.querySelector('.intro-start');
-  const main = document.getElementById('comparison-start');
-  let timer;
-  function finish() {
-    document.body.classList.remove('intro-opening');
-    main.focus({ preventScroll: true });
-  }
-  function showPage(animate) {
-    clearTimeout(timer);
-    const started = ['#comparison-start','#final-comparison'].includes(location.hash);
-    if (!started) {
-      document.body.classList.remove('intro-opening');
-      document.body.classList.add('intro-active');
-      window.scrollTo(0, 0);
-      return;
-    }
-    if (animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      // 먼저 닫힌 문을 그린 다음 양쪽으로 이동합니다.
-      document.body.classList.add('intro-opening');
-      document.body.classList.remove('intro-active');
-      const doors = hero.querySelectorAll('.intro-door');
-      doors.forEach(door => { door.style.transition = 'none'; door.style.transform = 'translateX(0)'; });
-      window.scrollTo(0, 0);
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        doors.forEach(door => { door.style.transition = ''; door.style.transform = ''; });
-        timer = setTimeout(finish, 900);
-      }));
-    } else {
-      document.body.classList.remove('intro-active', 'intro-opening');
-      window.scrollTo(0, 0);
-      main.focus({ preventScroll: true });
-    }
-  }
-  link.addEventListener('click', event => {
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    event.preventDefault();
-    history.pushState(null, '', '#comparison-start');
-    showPage(true);
-  });
-  window.addEventListener('popstate', () => showPage(false));
-  window.addEventListener('hashchange', () => showPage(false));
-  showPage(false);
-})();
-</script><script src="data.js"></script><script src="metadata.js"></script><script src="position-data.js"></script><script src="core.js?v=initial-search"></script><script src="repository.js"></script><script src="scouting.js"></script><script src="parks.js"></script><script src="scouting-entry.js"></script><script src="app.js?v=adjacent-position-groups"></script><script src="page-navigation.js"></script></body></html>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KBO 스카우팅 보드</title>
+  <link rel="stylesheet" href="scout-workflow.css">
+  <script defer src="data.js"></script>
+  <script defer src="metadata.js"></script>
+  <script defer src="position-data.js"></script>
+  <script defer src="core.js"></script>
+  <script defer src="analytics.js"></script>
+  <script defer src="charts.js"></script>
+  <script defer src="portfolio-model.js"></script>
+  <script defer src="scout-workflow.js"></script>
+</head>
+<body>
+  <header class="masthead screen-only">
+    <div class="shell header-inner">
+      <a class="brand" href="#discover">KBO 스카우팅 보드</a>
+      <nav aria-label="스카우팅 화면">
+        <a href="#discover" id="discover-link" aria-current="page">후보 발굴</a>
+        <a href="#report" id="report-link">선수 평가 리포트</a>
+      </nav>
+    </div>
+  </header>
+  <main class="shell">
+    <p id="load-status" role="status">선수 기록을 불러오는 중입니다.</p>
+    <section id="discover-screen" hidden>
+      <header class="screen-heading">
+        <h1 tabindex="-1" id="discover-heading">스카우팅 후보 발굴</h1>
+        <p>필요한 타자 유형을 정하고, 추천 근거를 확인해 검토할 선수를 고르세요.</p>
+      </header>
+      <form id="discover-form" class="panel">
+        <div class="filters">
+          <label>시즌<select id="season"></select></label>
+          <label>포지션<select id="position"></select></label>
+          <label>타격 유형<select id="profile"></select></label>
+          <button type="submit">후보 찾기</button>
+        </div>
+        <details class="advanced">
+          <summary>최소 타석과 지표 비중</summary>
+          <div class="advanced-fields">
+            <label>최소 타석<input id="minimum" type="number" min="1" step="1" value="200" required></label>
+            <div id="weights" class="weights"></div>
+          </div>
+          <p class="muted">비중은 0~10입니다. 0으로 설정하면 해당 지표를 점수에서 제외합니다.</p>
+        </details>
+        <p id="form-message" role="status" hidden></p>
+      </form>
+      <section class="results" aria-labelledby="candidate-heading">
+        <header>
+          <h2 id="candidate-heading">추천 후보</h2>
+          <p id="pool-summary" class="muted" aria-live="polite"></p>
+        </header>
+        <details class="method">
+          <summary>후보 점수 산출 기준</summary>
+          <p>조건을 충족한 같은 시즌의 타자를 기준으로 지표별 백분위를 구하고, 선택한 비중으로 평균합니다. 본인을 포함하고 동률은 절반씩 반영합니다. 삼진율은 낮을수록 유리합니다. 유효 기록이 5명 미만이거나 필수 기록이 비어 있으면 순위를 보류합니다.</p>
+          <div id="candidate-method"></div>
+        </details>
+        <div id="candidates" class="candidate-list"></div>
+        <button type="button" class="secondary" id="more-candidates" hidden>후보 더 보기</button>
+      </section>
+      <aside class="selection-bar" aria-label="선택한 선수">
+        <div>
+          <p id="selection-count" aria-live="polite">선택 0/3명</p>
+          <div id="selected-players" class="selected-players"></div>
+          <p id="selection-message" role="status" hidden></p>
+        </div>
+        <button type="button" id="open-report" disabled>평가 리포트 보기</button>
+      </aside>
+    </section>
+    <section id="report-screen" hidden>
+      <header class="screen-heading report-heading">
+        <div>
+          <h1 tabindex="-1" id="report-heading">선수 평가 리포트</h1>
+          <p id="report-subtitle"></p>
+        </div>
+        <button type="button" id="print-report" class="secondary screen-only" hidden>인쇄 / PDF 저장</button>
+      </header>
+      <p id="report-empty" hidden>후보 발굴에서 선수를 선택하면 리포트를 볼 수 있습니다. <a href="#discover">후보 발굴로 이동</a></p>
+      <div id="report-content"></div>
+    </section>
+  </main>
+</body>
+</html>

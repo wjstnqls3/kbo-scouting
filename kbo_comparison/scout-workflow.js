@@ -467,11 +467,6 @@
       expandedForPrint = [];
     });
     search();
-    if (!requested.length && ranked.length) {
-      const entry = ranked[0];
-      selected.set(keyOf(entry.row),{row:entry.row,entry,scope:applied});
-      renderCandidates();
-    }
     updateSelection();
     $('load-status').hidden = true;
     $('dashboard').hidden = false;

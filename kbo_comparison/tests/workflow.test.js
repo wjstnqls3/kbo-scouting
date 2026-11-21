@@ -38,7 +38,11 @@ test('후보 기준과 순위가 기존 계산과 일치하고 한 명부터 최
     expected.slice(0,15).map(({row})=>`${row.id}|${row.year}`));
   assert.match($('candidate-method').textContent,/유효 .*명/);
   assert.equal($('dashboard').hidden,false);
-  assert.equal(candidates[0].checked,true);
+  assert.ok(candidates.every(input=>!input.checked));
+  assert.equal($('selection-count').textContent,'선택 0/3명');
+  assert.equal($('report-empty').hidden,false);
+  assert.equal($('print-report').disabled,true);
+  candidates[0].click();
   assert.equal($('report-content').querySelectorAll('article').length,1);
   candidates[1].click();
   candidates[2].click();
@@ -70,6 +74,7 @@ test('후보 기준과 순위가 기존 계산과 일치하고 한 명부터 최
 
 test('사용자 지정 슬라이더는 점수와 순위를 갱신하고 0만 입력하면 계산을 보류한다', () => {
   const {$} = boot();
+  $('candidates').querySelector('[data-candidate]').click();
   const pool = P.poolFor(A.create(records),2024,'',200);
   const choose = value => { $('profile').value = value; $('profile').change(); };
   const verifyRanking = weights => {
@@ -156,7 +161,11 @@ test('시작 화면에서 두 모드를 선택하고 투수 후보·레이더·�
   assert.equal($('position-control').hidden,true);
   assert.match($('pool-summary').textContent,/2024년 · 전체 투수 · 30이닝/);
   const options = $('candidates').querySelectorAll('[data-candidate]');
-  assert.ok(options[0].checked);
+  assert.ok(options.every(input=>!input.checked));
+  assert.equal($('selection-count').textContent,'선택 0/3명');
+  assert.equal($('report-empty').hidden,false);
+  assert.equal($('print-report').disabled,true);
+  options[0].click();
   options[1].click();
   assert.equal($('selection-count').textContent,'선택 2/3명');
   assert.match($('radar-content').querySelector('svg').attrs['aria-label'],/4각형/);

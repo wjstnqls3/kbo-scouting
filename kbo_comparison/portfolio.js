@@ -124,7 +124,7 @@
             ${historyHtml(r,minimum)}
             <h4>분석가 메모</h4>
             <div class="memo-editor screen-only">${memoFor(r).map((v,i)=>`<label>${memoFields[i]}<textarea rows="2" data-id="${esc(keyOf(r))}" data-field="${i}">${esc(v)}</textarea></label>`).join('')}
-            <button type="button" data-save="${esc(keyOf(r))}">이 선수 메모 저장</button></div>
+            <p class="hint" role="status" data-memo-status="${esc(keyOf(r))}">입력하면 이 브라우저에 자동 저장됩니다.</p></div>
             <div class="memo-print" data-memo="${esc(keyOf(r))}"></div>
           </article>`;
         }).join('')}
@@ -142,20 +142,18 @@
     }
     $('report-content').oninput = event => {
       const {id,field} = event.target.dataset;
-      if (!id || field === undefined) return;
-      drafts.get(id)[+field] = event.target.value;
-      $('storage-status').textContent = '편집 중 · 이 선수 메모 저장 버튼으로 저장하세요.';
-      updatePrintMemos();
-    };
-    $('report-content').onclick = event => {
-      const key = event.target.dataset.save;
-      if (!selected.has(key)) return;
+      if (!selected.has(id) || field === undefined) return;
+      const values = drafts.get(id);
+      values[+field] = event.target.value;
+      const status = [...$('report-content').querySelectorAll('[data-memo-status]')]
+        .find(note => note.dataset.memoStatus === id);
       try {
-        localStorage.setItem(storageKey(selected.get(key).row),JSON.stringify(drafts.get(key)));
-        $('storage-status').textContent = selected.get(key).row.name+' 메모를 저장했습니다.';
+        localStorage.setItem(storageKey(selected.get(id).row),JSON.stringify(values));
+        status.textContent = '메모를 자동 저장했습니다.';
       } catch {
-        $('storage-status').textContent = '메모 저장 실패 · 브라우저의 저장 공간이나 차단 설정을 확인하세요. 현재 입력은 인쇄할 수 있습니다.';
+        status.textContent = '자동 저장 실패 · 브라우저의 저장 공간이나 차단 설정을 확인하세요. 입력한 메모는 인쇄할 수 있습니다.';
       }
+      updatePrintMemos();
     };
     $('print-report').onclick = () => { updatePrintMemos(); window.print(); };
     $('candidate-table').onchange = event => {

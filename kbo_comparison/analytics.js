@@ -21,9 +21,9 @@ strikeout:{onbase:0,contact:1,power:0,eye:0,production:0,homerun:0},
 walk:{onbase:0,contact:0,power:0,eye:1,production:0,homerun:0},
 homerun:{onbase:0,contact:0,power:0,eye:0,production:0,homerun:1},
 ops:{onbase:0,contact:0,power:0,eye:0,production:1,homerun:0}};
-function fitScore(scores,weights){
- const active=dimensions.filter(d=>weights[d.key]>0);
- if(dimensions.some(d=>!Number.isFinite(weights[d.key])||weights[d.key]<0||weights[d.key]>10)||!active.length)return {value:null,reason:'비중은 0~10 · 하나 이상 양수 필요',provisional:false};
+function fitScore(scores,weights,axes=dimensions){
+ const active=axes.filter(d=>weights[d.key]>0);
+ if(axes.some(d=>!Number.isFinite(weights[d.key])||weights[d.key]<0||weights[d.key]>10)||!active.length)return {value:null,reason:'비중은 0~10 · 하나 이상 양수 필요',provisional:false};
  if(active.some(d=>!Number.isFinite(scores[d.key]?.value)))return {value:null,reason:'선택한 지표의 비교 표본·기록 부족',provisional:false};
  const total=active.reduce((sum,d)=>sum+weights[d.key],0);
  return {value:active.reduce((sum,d)=>sum+scores[d.key].value*weights[d.key],0)/total,reason:null,provisional:active.some(d=>scores[d.key].provisional)};

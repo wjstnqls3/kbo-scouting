@@ -4,3 +4,5 @@ __pycache__/
 .DS_Store
 node_modules/
 kbo_comparison/ml/output/
+
+/site/

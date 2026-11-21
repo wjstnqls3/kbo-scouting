@@ -90,7 +90,7 @@ test('탐색 → 후보 선택 → 기존 화면 연결 → 메모 저장 및 �
   const input = $('report-content').querySelector('textarea');
   input.value='타석별 접근을 영상으로 확인 <관찰>';
   $('report-content').oninput({target:input});
-  $('report-content').onclick({target:$('report-content').querySelector('[data-save]')});
+  assert.match($('report-content').querySelector('[data-memo-status]').textContent,/자동 저장했습니다/);
   $('print-report').click();
   assert.equal(prints,1);
   assert.match($('report-content').querySelector('[data-memo]').textContent,/관찰/);

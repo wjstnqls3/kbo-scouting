@@ -3,7 +3,15 @@
 const $=id=>document.getElementById(id),A=KBOAnalytics,V=KBOCharts,esc=V.esc;
 const fmt=(v,n=3)=>Number.isFinite(v)?v.toFixed(n):'—';
 const positions=KBOCore.positionNames;
-const dimensionLabel=d=>`${d.name} ${d.meaning}`;
+const fitAxes=A.comparisonAxes;
+const fitPresets={
+ balanced:{avg:1,bb:1,k:1,iso:1,sb:1},
+ onbase:{avg:2,bb:3,k:1,iso:0,sb:0},
+ power:{avg:0,bb:0,k:0,iso:1,sb:0},
+ strikeout:{avg:0,bb:0,k:1,iso:0,sb:0},
+ walk:{avg:0,bb:1,k:0,iso:0,sb:0},
+ speed:{avg:0,bb:0,k:0,iso:0,sb:1}
+};
 const zeroGuide=`<div class="zero-guide">
   <p><strong>실제 기록 0</strong> 계산 기준이 되는 기회는 있었지만, 해당 결과는 0건입니다. 삼진율 0%는 삼진 0건, 출루율 0.000은 안타·볼넷·몸에 맞는 공 0건을 뜻합니다.</p>
   <p><strong>백분위 0점</strong> 비교군의 유효 기록이 모두 해당 선수보다 유리했다는 뜻입니다. K% 백분위 0점은 비교군보다 삼진율이 높았다는 의미입니다.</p>
@@ -84,14 +92,14 @@ try{
   switchPage(true);renderGrades();renderCandidates();
  };
  $('print').onclick=()=>window.print();
- $('fit-weights').innerHTML=A.dimensions.map(d=>`<label>${esc(dimensionLabel(d))}<input id="fit-${d.key}" type="number" min="0" max="10" step="1" value="1" required></label>`).join('');
+ $('fit-weights').innerHTML=fitAxes.map(d=>`<label>${esc(d.name+' · '+d.code)}<input id="fit-${d.key}" type="number" min="0" max="10" step="1" value="1" required></label>`).join('');
  $('fit-controls').onsubmit=e=>e.preventDefault();
  $('fit-preset').onchange=()=>{
-  const weights=A.fitPresets[$('fit-preset').value];
-  if(weights)for(const d of A.dimensions)$('fit-'+d.key).value=weights[d.key];
+  const weights=fitPresets[$('fit-preset').value];
+  if(weights)for(const d of fitAxes)$('fit-'+d.key).value=weights[d.key];
   renderReport();
  };
- for(const d of A.dimensions)$('fit-'+d.key).onchange=()=>{$('fit-preset').value='custom';renderReport();};
+ for(const d of fitAxes)$('fit-'+d.key).onchange=()=>{$('fit-preset').value='custom';renderReport();};
  let manualMinPA=false, comparePosition=false;
  function gradeMinimumFor(year){
   const required=KBOCore.requiredPA(year);
@@ -198,7 +206,7 @@ try{
   const r=override?.id?override:engine.lookup.get(`${$('player').value}|${$('year').value}`);
   if(!r){$('report').innerHTML='<p class="panel">검색 결과 없음</p>';$('print').disabled=true;return;}$('print').disabled=false;
   const min=manualMinPA?+$('minpa').value:KBOCore.requiredPA(r.year),settings={minPA:min,era:$('era').value,group:$('group').value};
-  const pool=engine.cohort(r,settings),scores=engine.scores(r,pool,min),l=engine.league.get(r.year),s=r.stats,change=engine.growth(r,min),similar=engine.similar(r,min);
+  const pool=engine.cohort(r,settings),l=engine.league.get(r.year),s=r.stats,change=engine.growth(r,min),similar=engine.similar(r,min);
   const averagePA=pool.length ? pool.reduce((sum,x)=>sum+x.stats.pa,0)/pool.length : null;
   $('minpa-guide').textContent=`현재 비교군 ${pool.length}개 선수·시즌 기록 · 평균 ${averagePA===null?'미산출':fmt(averagePA,1)+'타석'}. ${guide}`;
   const previous=engine.lookup.get(`${r.id}|${r.year-1}`);
@@ -209,21 +217,16 @@ try{
   const growthText=Number.isFinite(change)?`상대 OPS ${fmt(change,1)}% 변화`:`— ${growthMissing.join(' / ')||'지표 미확인'}`;
 
   const unavailable=['position','both'].includes(settings.group)&&!KBOCore.knownPosition(r.position)?'비교할 세부 포지션 자료 부족':['age','both'].includes(settings.group)&&r.age===null?'비교할 나이 자료 부족':pool.length<5?`비교 표본 부족 (${pool.length}/5)`:'해당 지표 기록 부족';
-  const missingScoreNote=A.dimensions.some(d=>scores[d.key].value===null)?`<p class="hint">— ${esc(unavailable)} · 맞춤 적합도 비교 기준</p>${pool.length<5?'<button type="button" class="radar-reset" data-reset-radar>맞춤 적합도 비교군 초기화</button>':''}`:'';
+  const missingScoreNote=pool.length<5?`<p class="hint">— ${esc(unavailable)} · 상대평가 비교 기준</p>${pool.length<5?'<button type="button" class="radar-reset" data-reset-radar>상대평가 비교군 초기화</button>':''}`:'';
   // An outside search opens a standalone report; imported comparisons stay unchanged.
   const inComparison=imported.some(x=>x.id===r.id&&x.year===r.year);
   const importedPeers=inComparison?imported.filter(x=>!(x.id===r.id&&x.year===r.year)):[];
   if(!peerOnly)updateSeasonNote([r.year,...importedPeers.map(x=>x.year)]);
-  const importedScores=importedPeers.map(x=>{
-   const minPA=manualMinPA?min:KBOCore.requiredPA(x.year);
-   return {row:x,scores:engine.scores(x,engine.cohort(x,{...settings,minPA}),minPA)};
-  });
   const delta=['avg','obp','slg','ops'].map((k,i)=>({label:['타율','출루율','장타율','OPS'][i],value:Number.isFinite(s[k])&&l[k]>0?(s[k]/l[k]-1)*100:null,detail:'선수/동시즌 리그 − 1, 백분율'}));
   const plotted=pool.slice().sort((a,b)=>a.year-b.year||a.id.localeCompare(b.id));const sample=plotted.length>300?plotted.filter((_,i)=>i%Math.ceil(plotted.length/300)===0):plotted;
     const basicStats=['avg','obp','slg','ops'];
   const statNames={avg:'타율',obp:'출루율',slg:'장타율',ops:'OPS'};
   const primary=(x)=>primaryKey===`${x.id}|${x.year}`;
-  const playerScores=x=>x.id===r.id&&x.year===r.year?scores:importedScores.find(item=>item.row.id===x.id&&item.row.year===x.year)?.scores;
   const positionNote=r.positionEvidence?`<p class="hint">${esc(KBOCore.positionText(r.position))} · <a href="${esc(r.positionEvidence.source)}" target="_blank" rel="noopener noreferrer">${esc(r.year)}년 포지션 근거 ↗</a></p>`:r.position==='OF'&&['position','both'].includes(settings.group)?'<p class="hint">세부 위치 비교는 자료 부족으로 미산출</p>':'';
   const observations=globalThis.KBOScoutingObservations?.lookup(r.id,r.year)||[];
   const injuries=globalThis.KBOScoutingObservations?.injuriesFor(r.id)||[];
@@ -256,9 +259,12 @@ try{
 
   };
   const blocks=['report-assessment','report-trend','report-similar','report-notes','report-injuries','context-card'];
-  const weights=Object.fromEntries(A.dimensions.map(d=>[d.key,A.num($('fit-'+d.key).value)]));
-  const fitRows=reportPlayers.map(x=>({row:x,...A.fitScore(playerScores(x),weights)}));
-  const fitHTML=`<section class="panel fit-summary"><h2>선택 목적에 따른 타격 적합도 · 100점 만점 · 자체 참고</h2><p class="hint">${esc($('fit-preset').selectedOptions[0]?.textContent||'직접 설정')} · 같은 설정을 선수별 비교군에 적용 · 레이더와 별도로 기존 6개 지표의 백분위를 가중 평균</p><div class="fit-results">${fitRows.map(x=>`<article class="team-scout-card fit-result" ${clubStyle(x.row.team)}><h3>${playerHeading(x.row)}</h3><strong class="fit-value">${fmt(x.value,1)}${Number.isFinite(x.value)?' / 100':''}</strong><p>${esc(x.reason|| (x.provisional?'소타석 참고 · 적은 출전으로 변동 가능':'선택한 비중으로 계산'))}</p></article>`).join('')}</div></section>`;
+  const weights=Object.fromEntries(fitAxes.map(d=>[d.key,A.num($('fit-'+d.key).value)]));
+  const fitRows=A.compareBatters(engine,reportPlayers,comparePosition).map(({row,axes,provisional})=>{
+   const scores=Object.fromEntries(axes.map(axis=>[axis.key,{value:axis.score,provisional}]));
+   return {row,...A.fitScore(scores,weights,fitAxes)};
+  });
+  const fitHTML=`<section class="panel fit-summary"><h2>선택 목적에 따른 타격 적합도 · 100점 만점 · 자체 참고</h2><p class="hint">${esc($('fit-preset').selectedOptions[0]?.textContent||'직접 설정')} · 5각형 레이더와 같은 비교군의 백분위에 선택한 비중 적용</p><div class="fit-results">${fitRows.map(x=>`<article class="team-scout-card fit-result" ${clubStyle(x.row.team)}><h3>${playerHeading(x.row)}</h3><strong class="fit-value">${fmt(x.value,1)}${Number.isFinite(x.value)?' / 100':''}</strong><p>${esc(x.reason|| (x.provisional?'소타석 참고 · 적은 출전으로 변동 가능':'선택한 비중으로 계산'))}</p></article>`).join('')}</div></section>`;
   $('report').innerHTML=lead+fitHTML+blocks.map(cls=>{
     const available=reports.map(({row,html})=>({row,content:section(html,cls)})).filter(x=>x.content);
     if(!available.length)return '';

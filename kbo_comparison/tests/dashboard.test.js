@@ -29,24 +29,28 @@ test('지표 한글 뜻·연 나이 안내와 맞춤 비중 변경이 선수별 
  const e=await app('?selection=62404%7C2024&selection=62934%7C2026');
  assert.match(e.doc.textContent,/만 나이 아님/);assert.match(e.$('age-min').parent.textContent,/연 나이/);
  assert.match(e.$('tab-finder').textContent,/조건별 선수 찾기/);
- const A=require('../analytics'),C=require('../core'),engine=A.create(require('../sample_data.json'),{qualifiedBaseline:true});
+ const A=require('../analytics'),engine=A.create(require('../sample_data.json'),{qualifiedBaseline:true});
+ assert.match(e.$('fit-controls').textContent,/5각형 지표별 백분위/);
+ assert.equal(e.$('fit-weights').querySelectorAll('input').length,5);
+ const axesFor=key=>A.compareBatters(engine,[engine.lookup.get(key)])[0].axes;
  e.$('fit-preset').value='onbase';e.$('fit-preset').change();
  const cards=panels(e,'fit-summary')[0].querySelectorAll('article');assert.equal(cards.length,2);
  for(const [i,key] of ['62404|2024','62934|2026'].entries()){
-  const r=engine.lookup.get(key),expected=A.fitScore(engine.scores(r,engine.cohort(r,{minPA:C.requiredPA(r.year)}),C.requiredPA(r.year)),A.fitPresets.onbase);
-  assert.equal(cards[i].querySelector('strong').textContent,`${expected.value.toFixed(1)} / 100`);
+  const scores=Object.fromEntries(axesFor(key).map(axis=>[axis.key,axis.score]));
+  const expected=(2*scores.avg+3*scores.bb+scores.k)/6;
+  assert.equal(cards[i].querySelector('strong').textContent,`${expected.toFixed(1)} / 100`);
  }
- for(const [preset,axis] of [['strikeout','contact'],['walk','eye'],['homerun','homerun'],['ops','production']]){
+ for(const [preset,axis] of [['strikeout','k'],['walk','bb'],['power','iso'],['speed','sb']]){
   e.$('fit-preset').value=preset;e.$('fit-preset').change();
   assert.equal(e.$('fit-preset').value,preset);
-  const r=engine.lookup.get('62934|2026'),score=engine.scores(r,engine.cohort(r,{minPA:C.requiredPA(r.year)}),C.requiredPA(r.year))[axis].value;
+  const score=axesFor('62934|2026').find(item=>item.key===axis).score;
   const result=panels(e,'fit-summary')[0];
   assert.match(result.textContent,/100점 만점/);
   assert.equal(result.querySelectorAll('article')[1].querySelector('strong').textContent,`${score.toFixed(1)} / 100`);
  }
  assert.match(panels(e,'report-similar')[0].textContent,/3\. 유사선수 TOP 5/);
  assert.doesNotMatch(e.doc.textContent,/과거 유사선수/);
- for(const d of A.dimensions)e.$('fit-'+d.key).value='0';e.$('fit-onbase').change();
+ for(const d of A.comparisonAxes)e.$('fit-'+d.key).value='0';e.$('fit-avg').change();
  assert.equal(e.$('fit-preset').value,'custom');assert.match(panels(e,'fit-summary')[0].textContent,/하나 이상 양수 필요/);
  assert.equal(panels(e,'report-assessment')[1].querySelector('svg').querySelectorAll('circle').length,5);
 });

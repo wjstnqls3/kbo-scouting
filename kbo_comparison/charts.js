@@ -46,7 +46,7 @@ function radar(labels,series,{comparison=false,compact=false}={}){
  });
  const any=series.some(s=>s.values.some(Number.isFinite)),partial=any&&series.some(s=>!s.values.every(Number.isFinite));
  const notice=!any?`<p class="radar-empty" role="status">${comparison?"5각형":"6각형"} 점수 없음 · 비교 표본 또는 기록 부족 · 위의 비교 조건 확인</p>`:partial?'<p class="radar-empty">일부 축 계산 불가 · 확인된 점만 표시</p>':'';
- if(compact)return `<svg class="radar-chart" viewBox="0 0 480 390" width="480" height="390" role="group" aria-label="5각형 백분위 · 0~100" xmlns="http://www.w3.org/2000/svg">${b}</svg>`+notice+legend(series);
+ if(compact)return `<svg class="radar-chart" viewBox="0 12 480 339" width="480" height="339" role="group" aria-label="5각형 백분위 · 0~100" xmlns="http://www.w3.org/2000/svg">${b}</svg>`+notice+legend(series);
  return `<svg class="radar-chart${comparison?' radar-comparison':''}" viewBox="0 0 480 390" width="480" height="390" role="group" aria-label="자체 백분위 ${comparison?'5각형':'6각형'} · 0~100" xmlns="http://www.w3.org/2000/svg">${b}</svg>`+notice+legend(series).replace('chart-legend','chart-legend radar-legend')+ (comparison?`<ul class="radar-line-guide" aria-label="두 선수 비교 선 범례">${series.length>1?'<li><strong>실선</strong> 첫 번째 선수</li><li><strong>짧은 점선</strong> 두 번째 선수</li>':''}<li><strong>긴 점선</strong> 200타석 미만 참고</li><li><strong>바깥쪽</strong> 높은 백분위</li></ul>`:'<p class="hint">높은 값 = 높은 상대 순위 · 점선 = 소타석 참고 · 자료 없는 축은 생략</p>');
 }
 root.KBOCharts={line,scatter,bars,radar,radarMethod,esc};

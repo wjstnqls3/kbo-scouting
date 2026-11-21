@@ -27,8 +27,7 @@ function boot({search='?year=2024', hash='', storage=new Map()} = {}) {
   const scripts = [...source('index.html').matchAll(/<script defer src="([^"]+)"/g)].map(([,name])=>name);
   for (const file of scripts) vm.runInContext(source(file),context);
   assert.deepEqual(errors, []);
-  for (const id of ['discover-heading','report-heading','season']) $(id).focus = () => {};
-  return {$, storage, prints:()=>prints, events, navigate(hash) { location.hash = hash; events.get('hashchange')(); }};
+  return {$, storage, prints:()=>prints, events};
 }
 
 test('후보 기준과 순위가 기존 계산과 일치하고 한 명부터 최대 세 명까지 평가할 수 있다', () => {
@@ -38,25 +37,34 @@ test('후보 기준과 순위가 기존 계산과 일치하고 한 명부터 최
   assert.deepEqual(candidates.map(input=>input.dataset.candidate),
     expected.slice(0,15).map(({row})=>`${row.id}|${row.year}`));
   assert.match($('candidate-method').textContent,/유효 .*명/);
-  assert.equal($('discover-screen').hidden,false);
-  candidates[0].click();
-  $('open-report').click();
-  app.navigate('#report');
-  assert.equal($('discover-screen').hidden,true);
+  assert.equal($('dashboard').hidden,false);
+  assert.equal(candidates[0].checked,true);
   assert.equal($('report-content').querySelectorAll('article').length,1);
-  app.navigate('#discover');
   candidates[1].click();
   candidates[2].click();
   candidates[3].click();
   assert.equal(candidates[3].checked,false);
   assert.match($('selection-message').textContent,/최대 3명/);
-  app.navigate('#report');
   const report = $('report-content');
   assert.equal(report.querySelectorAll('article').length,3);
-  assert.equal(report.querySelectorAll('svg').length,1);
+  assert.equal($('radar-content').querySelectorAll('svg').length,1);
+  $('tab-trend').click();
+  assert.equal(report.querySelector('[data-analysis="trend"]').hidden,false);
+  assert.equal(report.querySelector('[data-analysis="overview"]').hidden,true);
+  candidates[2].click();
+  assert.equal(report.querySelectorAll('article').length,2);
+  assert.equal(report.querySelector('[data-analysis="trend"]').hidden,false);
   assert.match(report.textContent,/포지션 비교군.*최근 3시즌.*유사 선수.*현장 확인/s);
   assert.match(report.textContent,/2022.*2023.*2024/s);
   assert.doesNotMatch(report.textContent,/2021년/);
+  $('player-search').value='ㄱㅈㅊ';
+  $('player-search').oninput();
+  const results=$('candidates').querySelectorAll('[data-candidate]');
+  const target=results.find(input=>input.attrs['aria-label'].includes('김지찬'));
+  assert.ok(target);
+  target.click();
+  assert.equal($('report-content').querySelectorAll('article').length,3);
+  assert.match($('radar-content').textContent,/김지찬/);
 });
 
 test('선수 리포트가 기존 메모를 읽고 우선순위·메모를 저장하며 PDF에 반영한다', () => {
@@ -73,7 +81,7 @@ test('선수 리포트가 기존 메모를 읽고 우선순위·메모를 저장
   report.oninput({target:note});
   priority.value = '우선 관찰';
   report.onchange({target:priority});
-  assert.equal(card.querySelector('[data-print-priority]').textContent,'우선 관찰');
+  assert.equal(card.querySelector('[data-priority-label]').textContent,'우선 관찰');
   assert.equal(card.querySelector('[data-print-note]').textContent,note.value);
   const details = report.querySelector('[data-print-expand]');
   app.events.get('beforeprint')();

@@ -21,33 +21,44 @@
   const drafts = new Map();
   let engine, records, metadata;
   let ranked = [], visibleCount = pageSize, applied;
-  let displayScreen;
+  let activeTab = 'overview';
+  let candidates = [];
 
   function usePreset(profile) {
     for (const {key} of A.comparisonAxes) $('weight-' + key).value = P.presets[profile][key];
   }
 
   function renderCandidates() {
-    $('candidates').innerHTML = ranked.length ? ranked.slice(0, visibleCount).map(entry => {
+    const query = $('player-search').value.trim();
+    candidates = ranked;
+    if (query) {
+      const matching = row => C.matchesName(row.name,query);
+      const rankedMatches = ranked.filter(({row})=>matching(row));
+      const rankedKeys = new Set(rankedMatches.map(({row})=>keyOf(row)));
+      const unranked = P.poolFor(engine,applied.year,applied.position,1)
+        .filter(row=>matching(row)&&!rankedKeys.has(keyOf(row))).map(row=>({row}));
+      candidates = [...rankedMatches,...unranked];
+    }
+    $('candidates').innerHTML = candidates.length ? candidates.slice(0, visibleCount).map(entry => {
       const {row} = entry;
       const key = keyOf(row);
-      const axes = P.active(applied.weights).sort((a,b) => entry.scores[b.key].value - entry.scores[a.key].value);
-      const evidence = axes.slice(0, 2).map(axis => `${axis.name} ${fmt(entry.scores[axis.key].value)}백분위`).join(' · ');
+      const axes = P.active(applied.weights).sort((a,b) => (entry.scores?.[b.key].value ?? 0) - (entry.scores?.[a.key].value ?? 0));
+      const evidence = !entry.rank ? (row.stats.pa < applied.minimum ? '최소 타석 미달' : '유효 표본 또는 기록 부족') : axes.slice(0, 2).map(axis => `${axis.name} ${fmt(entry.scores[axis.key].value)}백분위`).join(' · ');
       const last = axes.at(-1);
       const cautions = [
-        entry.scores[last.key].value < 50 ? `${last.name} ${fmt(entry.scores[last.key].value)}백분위` : '',
+        entry.scores?.[last.key].value < 50 ? `${last.name} ${fmt(entry.scores[last.key].value)}백분위` : '',
         row.stats.pa < C.requiredPA(row.year) ? '시즌 규정타석 참고값 미달' : '',
         !hasPosition(row) ? '세부 포지션 미확인' : '',
       ].filter(Boolean);
-      return `<article class="candidate panel">
-        <div class="rank" aria-label="${entry.rank}위">${entry.rank}<small>위</small></div>
+      return `<article class="candidate">
+        <div class="rank">${entry.rank ? entry.rank+'<small>위</small>' : '—'}</div>
         <div><h3>${esc(row.name)}</h3><p class="muted player-meta">${esc(row.team)} · ${esc(C.positionText(row.position))} · ${row.stats.pa}타석</p></div>
-        <div class="candidate-notes"><p><strong>추천 근거</strong> ${esc(evidence)}</p><p><strong>검토 사항</strong> ${esc(cautions.join(' · ') || '시즌 기록의 재현성과 수비 출전 확인')}</p></div>
-        <div class="candidate-actions"><strong class="score">${fmt(entry.value)}<small>점</small></strong>
+        <div class="candidate-notes"><p><strong>${entry.rank ? '추천 근거' : '순위 보류'}</strong> ${esc(evidence)}</p><p><strong>검토 사항</strong> ${esc(cautions.join(' · ') || '시즌 기록의 재현성과 수비 출전 확인')}</p></div>
+        <div class="candidate-actions"><strong class="score">${entry.rank ? fmt(entry.value)+'<small>점</small>' : '—'}</strong>
         <label class="select-player"><input type="checkbox" data-candidate="${esc(key)}" ${selected.has(key)?'checked':''} aria-label="${esc(playerLabel(row))} 검토 대상 선택">선택</label></div>
       </article>`;
-    }).join('') : '<p class="panel">순위를 산출할 수 있는 후보가 없습니다. 포지션이나 최소 타석을 조정해 보세요.</p>';
-    $('more-candidates').hidden = visibleCount >= ranked.length;
+    }).join('') : '<p class="empty">'+(query ? '시즌·포지션에 맞는 검색 결과가 없습니다.' : '순위를 산출할 수 있는 후보가 없습니다.')+'</p>';
+    $('more-candidates').hidden = visibleCount >= candidates.length;
   }
 
   function search(event) {
@@ -80,9 +91,10 @@
   function updateSelection() {
     $('selection-count').textContent = `선택 ${selected.size}/${maxSelected}명`;
     $('selection-message').hidden = true;
-    $('open-report').disabled = selected.size === 0;
+    $('print-report').disabled = selected.size === 0;
     $('selected-players').innerHTML = [...selected].map(([key,{row}]) =>
       `<button class="tag" type="button" data-remove="${esc(key)}" aria-label="${esc(playerLabel(row))} 선택 해제">${esc(row.name)} ${row.year} ×</button>`).join('');
+    renderReport();
   }
 
   function draftFor(key) {
@@ -135,26 +147,26 @@
     const source = metadata.season_status?.[row.year] || '확정 여부 미확인';
     return `<article class="player-report panel">
       <header><h3>${esc(row.name)}</h3><p class="muted">${esc(row.team)} · ${row.year}년 · ${esc(C.positionText(row.position))} · ${row.stats.pa}타석</p>
-      ${entry.entry ? `<p class="candidate-fit">${esc(entry.scope.profile)} 탐색 ${entry.entry.rank}위 · ${fmt(entry.entry.value)}점 · ${entry.scope.position ? esc(C.positionText(entry.scope.position)) : '전체 포지션'} ${entry.scope.minimum}타석 이상 ${entry.scope.poolSize}명</p>` : ''}</header>
-      <section><h4>강점과 약점</h4>
+      </header>
+      <section data-analysis="overview"><p class="priority"><strong>검토 우선순위</strong> <span data-priority-label>${priority}</span></p>
         <p><strong>강점</strong> ${high || (rated.length ? '75백분위 이상인 지표 없음' : '비교 점수 없음')}</p>
         <p><strong>약점</strong> ${low || (rated.length ? '25백분위 이하인 지표 없음' : '비교 점수 없음')}</p>
         <p class="muted">${positionKnown ? `시즌·포지션 비교군 ${poolSize}명` : '세부 포지션 미확인으로 상대평가 보류'}${provisional ? ' · 소타석 참고' : ''} · ${esc(source)}</p>
         <details data-print-expand><summary>실제 기록과 지표별 표본</summary>
+          ${entry.entry ? `<p class="candidate-fit">${esc(entry.scope.profile)} 탐색 ${entry.entry.rank}위 · ${fmt(entry.entry.value)}점 · ${entry.scope.position ? esc(C.positionText(entry.scope.position)) : '전체 포지션'} ${entry.scope.minimum}타석 이상 ${entry.scope.poolSize}명</p>` : ''}
           ${table(['지표','실제 기록','백분위','유효 표본'],axes.map(axis=>[
             `${axis.name} (${axis.code})`,raw(axis.actual,axis.key),axis.score===null ? reasons[axis.reason] : fmt(axis.score),`${axis.n}명`
           ]))}
         </details>
       </section>
-      <section><h4>최근 3시즌 성장 추세</h4>${trend(row)}</section>
-      <section><h4>유사 선수</h4><p class="muted">과거 타격 성향이 가까운 시즌 · 차이는 유사 선수 기준</p>${similar(row)}</section>
-      <section class="field-review"><h4>현장 확인</h4>
+      <section data-analysis="trend"><h4>최근 3시즌 성장 추세</h4>${trend(row)}</section>
+      <section data-analysis="similar"><h4>유사 선수</h4><p class="muted">과거 타격 성향이 가까운 시즌 · 차이는 유사 선수 기준</p>${similar(row)}</section>
+      <section data-analysis="field" class="field-review"><h4>현장 확인</h4>
         <p>수비 위치별 출전과 수비 동작, 주루 판단, 부상·회복 상태, 계약 조건을 확인하세요.</p>
         <label class="screen-only">검토 우선순위<select data-review="${esc(key)}" data-field="5">${priorities.map(value=>`<option value="${value}" ${value===priority?'selected':''}>${value}</option>`).join('')}</select></label>
         <label class="screen-only">스카우트 관찰 메모<textarea data-review="${esc(key)}" data-field="3" rows="3">${esc(note)}</textarea></label>
         <p class="muted screen-only" role="status" data-storage="${esc(key)}">${readable?'이 브라우저에 자동 저장됩니다.':'이 브라우저에서 저장된 메모를 읽을 수 없습니다.'}</p>
         ${legacyNotes ? `<details data-print-expand><summary>이전 관찰 메모</summary>${legacyNotes}</details>` : ''}
-        <p class="print-only"><strong>검토 우선순위</strong> <span data-print-priority="${esc(key)}">${priority}</span></p>
         <p class="print-only print-note"><strong>관찰 메모</strong> <span data-print-note="${esc(key)}">${esc(note || '미작성')}</span></p>
       </section>
     </article>`;
@@ -162,40 +174,39 @@
 
   function renderReport() {
     $('report-empty').hidden = selected.size > 0;
-    $('print-report').hidden = selected.size === 0;
+    $('analysis').hidden = selected.size === 0;
     if (!selected.size) {
-      $('report-subtitle').textContent = '';
+      $('radar-content').textContent = '';
       $('report-content').textContent = '';
       return;
     }
     const evaluations = A.compareBatters(engine,[...selected.values()].map(({row})=>row),true);
-    $('report-subtitle').textContent = evaluations.map(({row})=>playerLabel(row)).join(' / ');
     const radar = V.radar(A.comparisonAxes.map((axis,i)=>`${axis.code} ${axisNames[i]}`),evaluations.map(item=>({
       name:playerLabel(item.row), values:item.axes.map(axis=>axis.score), provisional:item.provisional,
     })),{comparison:true, compact:true});
-    $('report-content').innerHTML = `<section class="panel radar-panel">
-      <h2>5개 타격·주루 지표</h2>
-      <p class="muted">동일 시즌에서 세부 포지션이 하나 이상 겹치는 ${A.comparisonMinPA}타석 이상 타자와 비교합니다.</p>
-      ${radar}
-      <details class="method print-expand"><summary>계산 방식과 자료 범위</summary>
+    $('radar-content').innerHTML = `${radar}<div class="radar-meta">
+      <p class="muted radar-scope">같은 시즌 · 세부 포지션이 겹치는 ${A.comparisonMinPA}타석 이상 타자 기준</p>
+      <details class="method" data-print-expand><summary>계산 방식과 자료 범위</summary>
         <p>백분위 = (본인보다 불리한 값 수 + 동률 수 × 0.5) ÷ 지표별 유효 표본 × 100. 기준 충족 시 본인을 포함하며 삼진율은 낮을수록 유리합니다. 축별 유효 표본이 5명 미만이면 점수를 보류합니다. 선수별 시즌·포지션에 따라 비교군이 달라질 수 있습니다.</p>
         <p>${A.comparisonAxes.map(axis=>esc(axis.code + ' = ' + axis.formula)).join(' · ')}. 타석당 도루는 기록된 도루 빈도입니다.</p>
         <p>OPS 지수는 선수 OPS ÷ 해당 시즌 보유 기록의 합산 OPS × 100입니다. 유사 선수는 ${A.comparisonMinPA}타석 이상 과거 시즌에서 출루율·삼진율·ISO·볼넷률·OPS·홈런률의 표준화 거리로 선정합니다. 각 지표를 해당 시즌 리그 값으로 나누고, 삼진율은 방향을 뒤집습니다. 선수당 가장 가까운 한 시즌을 표시하며 차이는 유사 선수 − 평가 선수입니다.</p>
         <p>자료 ${esc(metadata.source_file || '동봉 CSV')} · 원 수집처 ${esc(metadata.original_source || '미확인')} · 수집일 ${esc(metadata.collected_at || '미확인')}</p>
-      </details>
-    </section><section class="player-grid" style="--players:${evaluations.length}" aria-label="선수별 평가">${evaluations.map(playerReport).join('')}</section>`;
+      </details></div>`;
+    $('report-content').innerHTML = `<div class="player-grid" style="--players:${evaluations.length}">${evaluations.map(playerReport).join('')}</div>`;
+    setTab(activeTab);
   }
 
-  function showScreen() {
-    const next = ['#report','#final-comparison'].includes(location.hash) ? 'report' : 'discover';
-    $('discover-screen').hidden = next !== 'discover';
-    $('report-screen').hidden = next !== 'report';
-    for (const name of ['discover','report']) {
-      $(name + '-link').setAttribute('aria-current',name === next ? 'page' : 'false');
+  function setTab(tab) {
+    activeTab = tab;
+    for (const button of $('analysis-tabs').querySelectorAll('[data-tab]')) {
+      const active = button.dataset.tab === tab;
+      button.setAttribute('aria-selected',String(active));
+      button.tabIndex = active ? 0 : -1;
     }
-    if (next === 'report') renderReport();
-    if (displayScreen && displayScreen !== next) $(next + '-heading').focus();
-    displayScreen = next;
+    $('analysis-panel').setAttribute('aria-labelledby','tab-'+tab);
+    for (const panel of $('report-content').querySelectorAll('[data-analysis]')) {
+      panel.hidden = panel.dataset.analysis !== tab;
+    }
   }
 
   function saveReview(event) {
@@ -206,7 +217,7 @@
     fields[Number(field)] = event.target.value;
     const card = event.target.closest('.player-report');
     const status = card.querySelector('[data-storage]');
-    card.querySelector('[data-print-priority]').textContent = fields[5] || priorities[0];
+    card.querySelector('[data-priority-label]').textContent = fields[5] || priorities[0];
     card.querySelector('[data-print-note]').textContent = fields[3] || '미작성';
     try {
       if (!draft.readable) {
@@ -239,7 +250,29 @@
       `<label>${esc(axis.name)}<input id="weight-${axis.key}" type="number" min="0" max="10" step="1"></label>`).join('');
     $('profile').value = 'onbase';
     usePreset('onbase');
-    $('profile').onchange = () => { if ($('profile').value !== 'custom') usePreset($('profile').value); };
+    $('profile').onchange = () => {
+      if ($('profile').value !== 'custom') usePreset($('profile').value);
+      search();
+    };
+    $('season').onchange = $('position').onchange = () => search();
+    $('player-search').oninput = () => { visibleCount = pageSize; renderCandidates(); };
+    $('player-search').onkeydown = event => {
+      if (event.isComposing || !$('player-search').value.trim()) return;
+      const first = $('candidates').querySelector('[data-candidate]');
+      if (!first || !['ArrowDown','Enter'].includes(event.key)) return;
+      event.preventDefault();
+      first.focus();
+      if (event.key === 'Enter' && !first.checked) first.click();
+    };
+    $('candidates').onkeydown = event => {
+      if (!event.target.dataset.candidate || !['ArrowDown','ArrowUp','Enter'].includes(event.key)) return;
+      event.preventDefault();
+      if (event.key === 'Enter') { event.target.click(); return; }
+      const inputs = [...$('candidates').querySelectorAll('[data-candidate]')];
+      const next = inputs.indexOf(event.target) + (event.key === 'ArrowDown' ? 1 : -1);
+      if (next < 0) $('player-search').focus();
+      else inputs[next]?.focus();
+    };
     $('weights').oninput = () => { $('profile').value = 'custom'; };
     $('discover-form').noValidate = true;
     $('discover-form').onsubmit = search;
@@ -260,8 +293,8 @@
           $('selection-message').hidden = false;
           return;
         }
-        const entry = ranked.find(item=>keyOf(item.row)===key);
-        if (entry) selected.set(key,{row:entry.row,entry,scope:applied});
+        const entry = candidates.find(item=>keyOf(item.row)===key);
+        if (entry) selected.set(key,{row:entry.row,entry:entry.rank ? entry : null,scope:applied});
       }
       updateSelection();
     };
@@ -275,7 +308,17 @@
       if (input) input.focus();
       else $('season').focus();
     };
-    $('open-report').onclick = () => { location.hash = 'report'; };
+    const tabs = [...$('analysis-tabs').querySelectorAll('[data-tab]')];
+    for (const tab of tabs) tab.onclick = () => setTab(tab.dataset.tab);
+    $('analysis-tabs').onkeydown = event => {
+      const index = tabs.indexOf(event.target);
+      const moves = {ArrowLeft:(index+tabs.length-1)%tabs.length, ArrowRight:(index+1)%tabs.length, Home:0, End:tabs.length-1};
+      if (index < 0 || !Object.hasOwn(moves,event.key)) return;
+      event.preventDefault();
+      const next = tabs[moves[event.key]];
+      setTab(next.dataset.tab);
+      next.focus();
+    };
     $('print-report').onclick = () => window.print();
     $('report-content').oninput = event => { if (event.target.dataset.field === '3') saveReview(event); };
     $('report-content').onchange = event => { if (event.target.dataset.field === '5') saveReview(event); };
@@ -288,18 +331,22 @@
     }
     let expandedForPrint = [];
     window.addEventListener('beforeprint', () => {
-      expandedForPrint = [...$('report-content').querySelectorAll('[data-print-expand]')].filter(panel=>!panel.open);
+      expandedForPrint = ['radar-content','report-content'].flatMap(id=>[...$(id).querySelectorAll('[data-print-expand]')]).filter(panel=>!panel.open);
       for (const panel of expandedForPrint) panel.open = true;
     });
     window.addEventListener('afterprint', () => {
       for (const panel of expandedForPrint) panel.open = false;
       expandedForPrint = [];
     });
-    window.addEventListener('hashchange',showScreen);
     search();
+    if (!requested.length && ranked.length) {
+      const entry = ranked[0];
+      selected.set(keyOf(entry.row),{row:entry.row,entry,scope:applied});
+      renderCandidates();
+    }
     updateSelection();
     $('load-status').hidden = true;
-    showScreen();
+    $('dashboard').hidden = false;
   } catch (error) {
     $('load-status').textContent = '스카우팅 자료를 불러올 수 없습니다. 데이터 파일을 확인하세요.';
     console.error(error);

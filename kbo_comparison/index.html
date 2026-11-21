@@ -15,28 +15,22 @@
   <script defer src="scout-workflow.js"></script>
 </head>
 <body>
-  <header class="masthead screen-only">
+  <header class="masthead">
     <div class="shell header-inner">
-      <a class="brand" href="#discover">KBO 스카우팅 보드</a>
-      <nav aria-label="스카우팅 화면">
-        <a href="#discover" id="discover-link" aria-current="page">후보 발굴</a>
-        <a href="#report" id="report-link">선수 평가 리포트</a>
-      </nav>
+      <div><h1>KBO 스카우팅 보드</h1><p>후보 발굴과 선수 평가</p></div>
+      <button type="button" id="print-report" class="screen-only" disabled>인쇄 / PDF 저장</button>
     </div>
   </header>
   <main class="shell">
     <p id="load-status" role="status">선수 기록을 불러오는 중입니다.</p>
-    <section id="discover-screen" hidden>
-      <header class="screen-heading">
-        <h1 tabindex="-1" id="discover-heading">스카우팅 후보 발굴</h1>
-        <p>필요한 타자 유형을 정하고, 추천 근거를 확인해 검토할 선수를 고르세요.</p>
-      </header>
-      <form id="discover-form" class="panel">
+    <div id="dashboard" hidden>
+      <form id="discover-form" class="panel screen-only">
         <div class="filters">
           <label>시즌<select id="season"></select></label>
           <label>포지션<select id="position"></select></label>
           <label>타격 유형<select id="profile"></select></label>
-          <button type="submit">후보 찾기</button>
+          <label>선수 검색<input type="search" id="player-search" placeholder="이름 또는 초성" aria-controls="candidates"></label>
+          <button type="submit">조건 적용</button>
         </div>
         <details class="advanced">
           <summary>최소 타석과 지표 비중</summary>
@@ -48,39 +42,48 @@
         </details>
         <p id="form-message" role="status" hidden></p>
       </form>
-      <section class="results" aria-labelledby="candidate-heading">
-        <header>
-          <h2 id="candidate-heading">추천 후보</h2>
-          <p id="pool-summary" class="muted" aria-live="polite"></p>
+      <div class="workspace">
+        <section class="panel results screen-only" aria-labelledby="candidate-heading">
+          <header class="panel-heading">
+            <h2 id="candidate-heading">추천 후보</h2>
+            <p id="pool-summary" class="muted" aria-live="polite"></p>
+          </header>
+          <div class="candidate-scroll" tabindex="0" role="region" aria-label="후보 목록">
+            <div id="candidates" class="candidate-list"></div>
+            <button type="button" class="secondary" id="more-candidates" hidden>후보 더 보기</button>
+          </div>
+          <details class="method">
+            <summary>후보 점수 산출 기준</summary>
+            <p>지표별 백분위의 가중평균입니다. 동률은 절반씩 반영하고, 삼진율은 낮을수록 유리합니다. 지표별 유효 표본이 5명 미만이거나 필수 기록이 없으면 순위를 보류합니다.</p>
+            <div id="candidate-method"></div>
+          </details>
+        </section>
+        <section class="panel radar-panel" aria-labelledby="radar-heading">
+          <header class="panel-heading">
+            <h2 id="radar-heading">5개 타격·주루 지표</h2>
+            <p id="selection-count" class="muted screen-only" aria-live="polite">선택 0/3명</p>
+          </header>
+          <div id="selected-players" class="selected-players screen-only"></div>
+          <p id="selection-message" class="screen-only" role="status" hidden></p>
+          <p id="report-empty" class="empty" hidden>후보를 선택하면 5축 레이더와 평가가 표시됩니다.</p>
+          <div id="radar-content"></div>
+        </section>
+      </div>
+      <section id="analysis" class="panel analysis-panel" aria-labelledby="analysis-heading" hidden>
+        <header class="panel-heading">
+          <h2 id="analysis-heading">선수별 분석</h2>
+          <div id="analysis-tabs" class="analysis-tabs screen-only" role="tablist" aria-label="선수 분석 항목">
+            <button type="button" id="tab-overview" role="tab" data-tab="overview" aria-controls="analysis-panel" aria-selected="true">평가 요약</button>
+            <button type="button" id="tab-trend" role="tab" data-tab="trend" aria-controls="analysis-panel" aria-selected="false" tabindex="-1">성장 추세</button>
+            <button type="button" id="tab-similar" role="tab" data-tab="similar" aria-controls="analysis-panel" aria-selected="false" tabindex="-1">유사 선수</button>
+            <button type="button" id="tab-field" role="tab" data-tab="field" aria-controls="analysis-panel" aria-selected="false" tabindex="-1">현장 확인</button>
+          </div>
         </header>
-        <details class="method">
-          <summary>후보 점수 산출 기준</summary>
-          <p>조건을 충족한 같은 시즌의 타자를 기준으로 지표별 백분위를 구하고, 선택한 비중으로 평균합니다. 본인을 포함하고 동률은 절반씩 반영합니다. 삼진율은 낮을수록 유리합니다. 유효 기록이 5명 미만이거나 필수 기록이 비어 있으면 순위를 보류합니다.</p>
-          <div id="candidate-method"></div>
-        </details>
-        <div id="candidates" class="candidate-list"></div>
-        <button type="button" class="secondary" id="more-candidates" hidden>후보 더 보기</button>
+        <div id="analysis-panel" role="tabpanel" aria-labelledby="tab-overview" tabindex="0">
+          <div id="report-content"></div>
+        </div>
       </section>
-      <aside class="selection-bar" aria-label="선택한 선수">
-        <div>
-          <p id="selection-count" aria-live="polite">선택 0/3명</p>
-          <div id="selected-players" class="selected-players"></div>
-          <p id="selection-message" role="status" hidden></p>
-        </div>
-        <button type="button" id="open-report" disabled>평가 리포트 보기</button>
-      </aside>
-    </section>
-    <section id="report-screen" hidden>
-      <header class="screen-heading report-heading">
-        <div>
-          <h1 tabindex="-1" id="report-heading">선수 평가 리포트</h1>
-          <p id="report-subtitle"></p>
-        </div>
-        <button type="button" id="print-report" class="secondary screen-only" hidden>인쇄 / PDF 저장</button>
-      </header>
-      <p id="report-empty" hidden>후보 발굴에서 선수를 선택하면 리포트를 볼 수 있습니다. <a href="#discover">후보 발굴로 이동</a></p>
-      <div id="report-content"></div>
-    </section>
+    </div>
   </main>
 </body>
 </html>

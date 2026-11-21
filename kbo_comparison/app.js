@@ -6,7 +6,15 @@ async function startApp() {
   const records=rawRecords.map(r=>({...r,Position:C.positionCode(r)}));
   const engine=C.createEngine(records), {players,validYears,aggregate,seasonYears}=engine;
   const playersById=new Map(players.map(p=>[p.id,p]));
-  const positionNames={'전체':'전체',...C.positionNames};
+  const positionGroups = new Map([
+    ['IF', ['1B', '2B', '3B', 'SS']],
+    ['OF', ['LF', 'CF', 'RF']],
+  ]);
+  const positionNames = Object.fromEntries([
+    ['전체', '전체'],
+    ...Object.entries(C.positionNames).flatMap(([code, name]) =>
+      code === '1B' ? [['IF', '내야수'], [code, name]] : [[code, name]]),
+  ]);
   const teamNames=Object.fromEntries(['전체',...[...new Set(records.map(r=>C.teamId(r.Team)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko'))].map(x=>[x,x]));
   const allYears=[...new Set(records.map(r=>Number(r.Season)).filter(Number.isFinite))].sort((a,b)=>b-a);
   $('recommend-year').innerHTML=allYears.map(y=>`<option value="${y}">${y}년</option>`).join('');
@@ -40,9 +48,13 @@ async function startApp() {
     if(input.value==='전체'&&input.checked)group.forEach(x=>x.checked=x===all);
     else {
       if(input.name.endsWith('-position')) {
-        const outfield=group.find(x=>x.value==='OF'),parts=group.filter(x=>['LF','CF','RF'].includes(x.value));
-        if(input.value==='OF')parts.forEach(x=>x.checked=input.checked);
-        else if(['LF','CF','RF'].includes(input.value))outfield.checked=parts.every(x=>x.checked);
+        for (const [code, members] of positionGroups) {
+          const parts = group.filter(option => members.includes(option.value));
+          if (input.value === code) parts.forEach(option => option.checked = input.checked);
+          else if (members.includes(input.value)) {
+            group.find(option => option.value === code).checked = parts.every(option => option.checked);
+          }
+        }
       }
       if(input.checked)all.checked=false;
     }

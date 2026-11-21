@@ -193,6 +193,23 @@ test('외야수는 좌·중·우를 함께 선택·해제하고 개별 선택 �
 });
 
 
+test('내야수는 양쪽 필터에서 1·2·3루수와 유격수만 함께 선택·해제', async () => {
+ const env = await app();
+ for (const name of ['browse-position', 'compare-position']) {
+  const options = env.doc.querySelectorAll(`input[name="${name}"]`);
+  const get = code => options.find(option => option.value === code);
+  const selected = () => options.filter(option => option.checked).map(option => option.value);
+  get('IF').click();
+  assert.deepEqual(selected(), ['IF', '1B', '2B', '3B', 'SS']);
+  get('SS').click();
+  assert.deepEqual(selected(), ['1B', '2B', '3B']);
+  get('SS').click();
+  assert.equal(get('IF').checked, true);
+  get('IF').click();
+  assert.deepEqual(selected(), ['전체']);
+ }
+});
+
 test('스카우팅 검토 후보를 기록 비교로 가져와 CSV 생성',async()=>{
   const env=await app({hash:'#final-comparison',search:'?selection=67341%7C2022&selection=75125%7C2022'});
   assert.equal(comparisonRows(env),2);

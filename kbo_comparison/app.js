@@ -234,6 +234,13 @@ async function startApp() {
     document.querySelectorAll('[data-chip]').forEach(button=>button.onclick=()=>{chips[+button.dataset.chip].action();browseLimit=10;renderBrowse();});
   }
   function renderBrowse() {
+    const yearSummary = $('browse-year-summary');
+    if (yearSummary) {
+      const years = selectedYears();
+      yearSummary.textContent = $('browse-all-years').checked ? '전체 시즌'
+        : years.length === 1 ? `${years[0]}년`
+        : `${years.length}개 시즌 선택`;
+    }
     const years=new Set(selectedYears()),scope=$('leader-scope').value,teamMode=$('browse-team-leaders').checked;
     const leagueOnly=$('browse-leaders').checked;
     if(teamMode)$('browse-team-scope').value='season';

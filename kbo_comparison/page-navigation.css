@@ -73,3 +73,27 @@
     padding:8px 0;
   }
 }
+
+.season-dropdown {
+  min-width:0;
+  border:1px solid #b2d5c6;
+  border-radius:10px;
+  background:#fff;
+}
+.season-dropdown > summary {
+  cursor:pointer;
+  min-height:44px;
+  padding:10px 14px;
+  color:#083b2b;
+}
+.season-dropdown > summary > strong {
+  margin-inline-start:12px;
+}
+.season-dropdown > #browse-years {
+  max-height: min(45vh, 360px);
+  margin:0;
+  padding:8px 14px;
+  border:0;
+  border-top:1px solid #b2d5c6;
+  overflow:auto;
+}

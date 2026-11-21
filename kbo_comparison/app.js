@@ -12,8 +12,10 @@ async function startApp() {
   ]);
   const positionNames = Object.fromEntries([
     ['전체', '전체'],
-    ...Object.entries(C.positionNames).flatMap(([code, name]) =>
-      code === '1B' ? [['IF', '내야수'], [code, name]] : [[code, name]]),
+    ...Object.entries(C.positionNames)
+      .filter(([code]) => code !== 'OF')
+      .flatMap(([code, name]) =>
+        code === '1B' ? [['IF', '내야수'], ['OF', C.positionNames.OF], [code, name]] : [[code, name]]),
   ]);
   const teamNames=Object.fromEntries(['전체',...[...new Set(records.map(r=>C.teamId(r.Team)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko'))].map(x=>[x,x]));
   const allYears=[...new Set(records.map(r=>Number(r.Season)).filter(Number.isFinite))].sort((a,b)=>b-a);

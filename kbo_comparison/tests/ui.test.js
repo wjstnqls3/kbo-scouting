@@ -199,6 +199,7 @@ test('내야수는 양쪽 필터에서 1·2·3루수와 유격수만 함께 선�
   const options = env.doc.querySelectorAll(`input[name="${name}"]`);
   const get = code => options.find(option => option.value === code);
   const selected = () => options.filter(option => option.checked).map(option => option.value);
+  assert.equal(options[options.indexOf(get('IF')) + 1].value, 'OF');
   get('IF').click();
   assert.deepEqual(selected(), ['IF', '1B', '2B', '3B', 'SS']);
   get('SS').click();

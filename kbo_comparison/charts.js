@@ -5,7 +5,7 @@ const colors=['#176143','#ad7d20','#477ea5','#9b4772','#657645','#a35335'];
 const f=v=>Number.isFinite(v)?v.toFixed(3):'미산출';
 const tip=t=>`tabindex="0" data-tip="${esc(t)}" aria-label="${esc(t)}"`;
 function wrap(body,label){return `<svg viewBox="0 0 ${body.includes('class="baseline-label"')?740:600} 330" role="group" aria-label="${esc(label)}" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;}
-function legend(series){return `<div class="chart-legend">${series.map((s,i)=>`<span><i style="background:${colors[i%colors.length]}"></i>${esc(s.name)}${s.provisional?' · 소타석 참고':''}</span>`).join('')}</div>`;}
+function legend(series){return `<div class="chart-legend">${series.map((s,i)=>`<span><i style="background:${colors[i%colors.length]}"></i>${esc(s.name)}${s.provisional?' · '+esc(s.provisionalText||'소타석 참고'):''}</span>`).join('')}</div>`;}
 function line(series,xLabel,yLabel){
  const pts=series.flatMap(s=>s.points).filter(p=>Number.isFinite(p.y)&&Number.isFinite(p.x));if(!pts.length)return '<p>그래프 기록 부족</p>';
  let xmin=Math.min(...pts.map(p=>p.x)),xmax=Math.max(...pts.map(p=>p.x));if(xmin===xmax)xmax=xmin+1;
@@ -14,6 +14,53 @@ function line(series,xLabel,yLabel){
  let b=axes(X,Y,xmin,xmax,ymin,ymax,xLabel,yLabel);
  if(indexed)b+=`<line x1="65" x2="535" y1="${Y(100)}" y2="${Y(100)}" stroke="#001e2b" stroke-dasharray="6 4"/><text class="baseline-label" x="545" y="${Y(100)+4}" text-anchor="start">리그 평균 100</text>`;
  series.forEach((s,i)=>{let segment=[];const flush=()=>{if(segment.length>1)b+=`<polyline fill="none" stroke="${colors[i%6]}" stroke-width="2.5" points="${segment.join(' ')}"/>`;segment=[];};s.points.forEach(p=>{if(!Number.isFinite(p.y)){flush();return;}segment.push(`${X(p.x)},${Y(p.y)}`);});flush();s.points.filter(p=>Number.isFinite(p.y)).forEach(p=>b+=`<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="4.5" fill="${colors[i%6]}" ${tip(`${s.name} · ${p.label||p.x}: ${f(p.y)} · ${yLabel}`)}><title>${esc(s.name)}: ${f(p.y)}</title></circle>`);});return wrap(b,yLabel)+legend(series);
+}
+function seasonTrend(series,label,format){
+ const years=[...new Set(series.flatMap(item=>item.points.map(point=>point.year)))].sort((a,b)=>a-b);
+ const values=series.flatMap(item=>item.points.map(point=>point.value)).filter(Number.isFinite);
+ if(!values.length)return '<p class="muted">선택한 지표의 유효 시즌 기록이 없습니다.</p>';
+ const width=Math.max(440,120+years.length*65), height=200;
+ const bottom=166, top=23, left=70, right=width-68;
+ const min=Math.min(...values), max=Math.max(...values);
+ const pad=max===min ? Math.max(Math.abs(max)*0.08,0.005) : (max-min)*0.12;
+ const low=Math.max(0,min-pad), high=max+pad;
+ const x=year=>years.length===1 ? (left+right)/2 : left+(right-left)*years.indexOf(year)/(years.length-1);
+ const y=value=>bottom-(bottom-top)*(value-low)/(high-low);
+ let body=[low,(low+high)/2,high].map(value=>
+  `<line class="trend-gridline" x1="${left-8}" x2="${right+50}" y1="${y(value)}" y2="${y(value)}"/><text x="${left-13}" y="${y(value)+4}" text-anchor="end">${esc(format(value))}</text>`
+ ).join('');
+ body+=years.map(year=>`<text x="${x(year)}" y="${height-10}" text-anchor="middle">${year}</text>`).join('');
+ const pointsByYear=new Map(years.map(year=>[year,[]]));
+ series.forEach(({name,points},index)=>{
+  const color=colors[index%colors.length];
+  let previous=null;
+  for(const point of points){
+   if(!Number.isFinite(point.value)){previous=null;continue;}
+   const px=x(point.year),py=y(point.value);
+   if(previous&&point.year===previous.year+1){
+    body+=`<line class="trend-segment" x1="${previous.x}" y1="${previous.y}" x2="${px}" y2="${py}" stroke="${color}"${point.lowSample||previous.lowSample?' stroke-dasharray="5 4"':''}/>`;
+   }
+   pointsByYear.get(point.year).push({...point,name,color,x:px,y:py});
+   previous={year:point.year,x:px,y:py,lowSample:point.lowSample};
+  }
+ });
+ for(const points of pointsByYear.values()){
+  points.sort((a,b)=>a.y-b.y);
+  let last=0;
+  const labels=points.map(point=>last=Math.max(point.y,last+20));
+  const shift=Math.max(0,(labels.at(-1)??0)-bottom);
+  points.forEach((point,index)=>{
+   const value=format(point.value), labelY=labels[index]-shift;
+   const details=`${point.name} · ${point.year}년: ${value} · ${point.sample}${point.lowSample?' · 소표본':''}`;
+   if(Math.abs(labelY-point.y)>6){
+    body+=`<line x1="${point.x+4}" y1="${point.y}" x2="${point.x+8}" y2="${labelY}" stroke="${point.color}"/>`;
+   }
+   body+=`<circle class="trend-point${point.lowSample?' low-sample':''}" cx="${point.x}" cy="${point.y}" r="4" stroke="${point.color}" fill="${point.lowSample?'white':point.color}" ${tip(details)}><title>${esc(details)}</title></circle><text class="trend-value" x="${point.x+10}" y="${labelY+4}" fill="${point.color}">${esc(value)}</text>`;
+  });
+ }
+ const sampleKey=series.some(item=>item.points.some(point=>point.lowSample&&Number.isFinite(point.value)))
+  ? '<p class="muted trend-note">빈 점·점선은 소표본 기록입니다.</p>' : '';
+ return `<div class="trend-scroll"><svg class="trend-chart" style="--trend-min-width:${years.length>4?years.length*56+20:0}px" viewBox="0 0 ${width} ${height}" role="group" aria-label="${esc(label)} 시즌별 실제 기록" xmlns="http://www.w3.org/2000/svg">${body}</svg></div>${series.length>1?legend(series):''}${sampleKey}`;
 }
 function axes(X,Y,xmin,xmax,ymin,ymax,xLabel,yLabel){let s='';for(let i=0;i<=4;i++){let y=ymin+(ymax-ymin)*i/4;s+=`<line x1="65" x2="535" y1="${Y(y)}" y2="${Y(y)}" stroke="#9baea6" stroke-width="1" vector-effect="non-scaling-stroke"/><text x="58" y="${Y(y)+4}" text-anchor="end">${y.toFixed(2)}</text>`;}const ticks=Number.isInteger(xmin)&&Number.isInteger(xmax)&&xmax-xmin<10?Array.from({length:xmax-xmin+1},(_,i)=>xmin+i):Array.from({length:5},(_,i)=>xmin+(xmax-xmin)*i/4);for(const x of ticks)s+=`<line x1="${X(x)}" x2="${X(x)}" y1="45" y2="270" stroke="#9baea6" stroke-width="1" vector-effect="non-scaling-stroke"/><text x="${X(x)}" y="292" text-anchor="middle">${Number.isInteger(x)?x:x.toFixed(1)}</text>`;return s+`<path d="M65 45V270H535" fill="none" stroke="#233e34" stroke-width="2" vector-effect="non-scaling-stroke"/><text x="300" y="320" text-anchor="middle">${esc(xLabel)}</text><text x="65" y="22">${esc(yLabel)}</text>`;}
 function scatter(points,xLabel,yLabel){const p=points.filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y));if(!p.length)return '<p>산점도 기록 없음</p>';let xmin=Math.min(...p.map(p=>p.x)),xmax=Math.max(...p.map(p=>p.x)),ymin=Math.min(...p.map(p=>p.y)),ymax=Math.max(...p.map(p=>p.y));if(xmin===xmax){xmin-=1;xmax+=1;}if(yLabel.includes('그해 리그 OPS')){ymin=Math.min(ymin,.9);ymax=Math.max(ymax,1.1);}if(yLabel.includes('OPS 지수')){ymin=Math.min(ymin,90);ymax=Math.max(ymax,110);}if(ymin===ymax){ymin-=1;ymax+=1;}const X=v=>65+470*(v-xmin)/(xmax-xmin),Y=v=>270-225*(v-ymin)/(ymax-ymin);let b=axes(X,Y,xmin,xmax,ymin,ymax,xLabel,yLabel);if(yLabel.includes('OPS 지수'))b+=`<line x1="65" x2="535" y1="${Y(100)}" y2="${Y(100)}" stroke="#001e2b" stroke-dasharray="6 4"/><text class="baseline-label" x="545" y="${Y(100)+4}" text-anchor="start">리그 평균 100</text>`;if(yLabel.includes('그해 리그 OPS'))b+=`<line x1="65" x2="535" y1="${Y(1)}" y2="${Y(1)}" stroke="#001e2b" stroke-width="2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/><text class="baseline-label" x="545" y="${Y(1)+4}" text-anchor="start">리그 평균 1</text>`;p.sort((a,b)=>!!a.selected-!!b.selected).forEach(p=>b+=`<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="${p.selected?7:4}" fill="${p.selected?'#ad7d20':'#176143'}" opacity="${p.selected?1:.65}" ${tip(`${p.label} · ${xLabel}: ${f(p.x)} · ${yLabel}: ${f(p.y)}`)}><title>${esc(p.label)}</title></circle>`);return wrap(b,`${xLabel} / ${yLabel}`)+`<p class="hint">점: 선수·시즌${p.some(x=>x.selected)?' · 금색: '+p.filter(x=>x.selected).map(x=>esc(x.label)).join(', '):''}</p>`;}
@@ -45,9 +92,12 @@ function radar(labels,series,{comparison=false,compact=false}={}){
   });
  });
  const any=series.some(s=>s.values.some(Number.isFinite)),partial=any&&series.some(s=>!s.values.every(Number.isFinite));
- const notice=!any?`<p class="radar-empty" role="status">${comparison?"5각형":"6각형"} 점수 없음 · 비교 표본 또는 기록 부족 · 위의 비교 조건 확인</p>`:partial?'<p class="radar-empty">일부 축 계산 불가 · 확인된 점만 표시</p>':'';
- if(compact)return `<svg class="radar-chart" viewBox="0 12 480 339" width="480" height="339" role="group" aria-label="5각형 백분위 · 0~100" xmlns="http://www.w3.org/2000/svg">${b}</svg>`+notice+legend(series);
+ const notice=!any?`<p class="radar-empty" role="status">${labels.length}각형 점수 없음 · 비교 표본 또는 기록 부족 · 위의 비교 조건 확인</p>`:partial?'<p class="radar-empty">일부 축 계산 불가 · 확인된 점만 표시</p>':'';
+ if(compact){
+  const height=labels.length===4?370:339;
+  return `<svg class="radar-chart" viewBox="0 12 480 ${height}" width="480" height="${height}" role="group" aria-label="${labels.length}각형 백분위 · 0~100" xmlns="http://www.w3.org/2000/svg">${b}</svg>`+notice+legend(series);
+ }
  return `<svg class="radar-chart${comparison?' radar-comparison':''}" viewBox="0 0 480 390" width="480" height="390" role="group" aria-label="자체 백분위 ${comparison?'5각형':'6각형'} · 0~100" xmlns="http://www.w3.org/2000/svg">${b}</svg>`+notice+legend(series).replace('chart-legend','chart-legend radar-legend')+ (comparison?`<ul class="radar-line-guide" aria-label="두 선수 비교 선 범례">${series.length>1?'<li><strong>실선</strong> 첫 번째 선수</li><li><strong>짧은 점선</strong> 두 번째 선수</li>':''}<li><strong>긴 점선</strong> 200타석 미만 참고</li><li><strong>바깥쪽</strong> 높은 백분위</li></ul>`:'<p class="hint">높은 값 = 높은 상대 순위 · 점선 = 소타석 참고 · 자료 없는 축은 생략</p>');
 }
-root.KBOCharts={line,scatter,bars,radar,radarMethod,esc};
+root.KBOCharts={line,seasonTrend,scatter,bars,radar,radarMethod,esc};
 })(globalThis);

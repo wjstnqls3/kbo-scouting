@@ -2,30 +2,94 @@
   const $ = id => document.getElementById(id);
   const A = KBOAnalytics, C = KBOCore, P = KBOPortfolio, V = KBOCharts;
   const {esc} = V;
-  const profiles = {onbase:'출루형', power:'장타형', contact:'콘택트형', balanced:'균형형', custom:'사용자 지정'};
+  const params = new URLSearchParams(location.search);
+  const requestedMode = params.get('mode');
+  const legacyLink = ['year','id','selection'].some(key=>params.has(key)) || location.hash === '#final-comparison';
+  if (!requestedMode && !legacyLink) {
+    $('start-screen').hidden = false;
+    return;
+  }
+  const pitching = requestedMode === 'pitching';
+  const mode = pitching ? 'pitching' : 'batting';
+  const pitchingModel = KBOPitching;
+  const axes = pitching ? pitchingModel.axes : A.comparisonAxes;
+  const ranking = pitching ? pitchingModel : P;
+  const unit = pitching ? '이닝' : '타석';
+  const defaultMinimum = pitching ? pitchingModel.minimum : A.comparisonMinPA;
+  const volume = row => pitching ? row.stats.outs/3 : row.stats.pa;
+  const volumeText = row => pitching
+    ? row.stats.outs === null ? '이닝 미확인' : pitchingModel.formatIP(row.stats.outs)+'이닝'
+    : row.stats.pa+'타석';
+  const poolFor = (year,position,minimum) => pitching
+    ? pitchingModel.poolFor(engine,year,minimum)
+    : P.poolFor(engine,year,position,minimum);
+  const profileLabel = pitching ? '투구 유형' : '타격 유형';
+  const profiles = pitching ? {balanced:'균형형', strikeout:'탈삼진형', walkControl:'볼넷 억제형', homerControl:'피홈런 억제형', custom:'사용자 지정'} : {onbase:'출루형', power:'장타형', contact:'콘택트형', balanced:'균형형', custom:'사용자 지정'};
   const priorities = ['미정', '우선 관찰', '추가 관찰', '보류'];
   const legacyMemoLabels = ['주목한 이유', '강점에 대한 의견', '추가 확인', '', '최종 의견'];
-  const axisNames = ['안타', '볼넷', '삼진 억제', '순장타', '도루'];
+  const axisNames = pitching ? ['탈삼진','볼넷 억제','피홈런 억제','출루 억제'] : ['안타', '볼넷', '삼진 억제', '순장타', '도루'];
+  const trendNames = pitching
+    ? {k:'탈삼진율',bb:'볼넷률',hr:'9이닝당 피홈런',whip:'이닝당 출루 허용'}
+    : {avg:'타율',bb:'볼넷률',k:'삼진율',iso:'순수 장타율',sb:'타석당 도루'};
   const pageSize = 15, maxSelected = 3;
   const keyOf = row => C.selectionKey(row.id, row.year);
   const fmt = (value, digits = 1) => Number.isFinite(value) ? value.toFixed(digits) : '—';
   const signed = (value, digits = 1) => Number.isFinite(value) ? (value > 0 ? '+' : '') + fmt(value, digits) : '—';
-  const raw = (value, key) => Number.isFinite(value) && ['bb','k','sb'].includes(key) ? fmt(value * 100, 2) + '%' : fmt(value, 3);
+  const raw = (value, key) => Number.isFinite(value) && (pitching ? ['bb','k'] : ['bb','k','sb']).includes(key) ? fmt(value * 100, 2) + '%' : fmt(value, 3);
   const option = (value, label) => `<option value="${esc(value)}">${esc(label)}</option>`;
   const table = (headers, rows) => `<div class="table-wrap"><table><thead><tr>${headers.map(h=>`<th scope="col">${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(value=>`<td>${esc(value)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
   const playerLabel = row => `${row.name} · ${row.team} · ${row.year}`;
-  const hasPosition = row => C.knownPosition(row.position);
-  const memoKey = key => 'kbo.scouting.memo.v1.' + key;
+  const memoKey = key => (pitching ? 'kbo.scouting.pitching.memo.v1.' : 'kbo.scouting.memo.v1.') + key;
 
   const selected = new Map();
   const drafts = new Map();
-  let engine, records, metadata;
+  let engine, records, metadata, firstSeason;
   let ranked = [], visibleCount = pageSize, applied;
   let activeTab = 'overview';
   let candidates = [];
 
-  function usePreset(profile) {
-    for (const {key} of A.comparisonAxes) $('weight-' + key).value = P.presets[profile][key];
+  function showWeightValues() {
+    for (const {key} of axes) $('weight-value-' + key).textContent = $('weight-' + key).value;
+  }
+
+  function seasonCheckpoint(row) {
+    const previous = engine.lookup.get(C.selectionKey(row.id,row.year-1));
+    if (!previous || volume(previous)<defaultMinimum) return '';
+    const metrics = pitching
+      ? [{key:'era',name:'ERA',threshold:0.75},{key:'whip',name:'WHIP',threshold:0.15}]
+      : [{key:'index',name:'리그 대비 OPS 지수',threshold:15}];
+    const changes = metrics.flatMap(({key,name,threshold})=>{
+      const before = pitching ? previous.stats[key] : previous.index;
+      const after = pitching ? row.stats[key] : row.index;
+      if (!Number.isFinite(before) || !Number.isFinite(after)) return [];
+      const decline = (pitching ? after-before : before-after)/threshold;
+      if (decline<1) return [];
+      const digits = pitching ? 2 : 1;
+      return [{decline,text:`${row.year-1}→${row.year}년 ${name} ${fmt(before,digits)} → ${fmt(after,digits)}`}];
+    });
+    return changes.sort((a,b)=>b.decline-a.decline)[0]?.text || '';
+  }
+
+  function scoutingCheckpoints(row) {
+    if (pitching && row.stats.outs===null) return ['이닝 기록 결측 · 표본 판단 보류'];
+    if (volume(row)<defaultMinimum) {
+      return [`${volumeText(row)} · 비교 기준 ${defaultMinimum}${unit} 미달`];
+    }
+    const evaluation = pitching ? engine.compare(row) : A.compareBatters(engine,[row],true)[0];
+    const rated = evaluation.axes.filter(axis=>Number.isFinite(axis.score)).sort((a,b)=>a.score-b.score);
+    const change = seasonCheckpoint(row);
+    if (!rated.length) {
+      const reason = evaluation.positionKnown ? '기록·비교 표본 부족' : '세부 포지션 미확인';
+      return [`유효 지표 0/${evaluation.axes.length}개 · ${reason}으로 상대평가 보류`,change].filter(Boolean);
+    }
+    const describe = axis => `${axis.code} ${raw(axis.actual,axis.key)} · ${axis.name} ${fmt(axis.score)}백분위`;
+    const weakest = rated[0];
+    const second = rated.slice(1).find(axis=>!pitching || !['bb','whip'].includes(weakest.key) || !['bb','whip'].includes(axis.key));
+    const checks = [weakest.score<=25 ? describe(weakest) : '',change,
+      second?.score<=25 ? describe(second) : ''].filter(Boolean).slice(0,2);
+    if (checks.length) return checks;
+    const strongest = rated.at(-1);
+    return strongest.score>=85 ? [describe(strongest)] : [];
   }
 
   function renderCandidates() {
@@ -35,55 +99,50 @@
       const matching = row => C.matchesName(row.name,query);
       const rankedMatches = ranked.filter(({row})=>matching(row));
       const rankedKeys = new Set(rankedMatches.map(({row})=>keyOf(row)));
-      const unranked = P.poolFor(engine,applied.year,applied.position,1)
+      const unranked = poolFor(applied.year,applied.position,pitching ? 0 : 1)
         .filter(row=>matching(row)&&!rankedKeys.has(keyOf(row))).map(row=>({row}));
       candidates = [...rankedMatches,...unranked];
     }
     $('candidates').innerHTML = candidates.length ? candidates.slice(0, visibleCount).map(entry => {
       const {row} = entry;
       const key = keyOf(row);
-      const axes = P.active(applied.weights).sort((a,b) => (entry.scores?.[b.key].value ?? 0) - (entry.scores?.[a.key].value ?? 0));
-      const evidence = !entry.rank ? (row.stats.pa < applied.minimum ? '최소 타석 미달' : '유효 표본 또는 기록 부족') : axes.slice(0, 2).map(axis => `${axis.name} ${fmt(entry.scores[axis.key].value)}백분위`).join(' · ');
-      const last = axes.at(-1);
-      const cautions = [
-        entry.scores?.[last.key].value < 50 ? `${last.name} ${fmt(entry.scores[last.key].value)}백분위` : '',
-        row.stats.pa < C.requiredPA(row.year) ? '시즌 규정타석 참고값 미달' : '',
-        !hasPosition(row) ? '세부 포지션 미확인' : '',
-      ].filter(Boolean);
+      const activeAxes = ranking.active(applied.weights).sort((a,b) => (entry.scores?.[b.key].value ?? 0) - (entry.scores?.[a.key].value ?? 0));
+      const evidence = !entry.rank ? (row.stats.outs === null && pitching ? '이닝 미확인' : volume(row) < applied.minimum ? '최소 '+unit+' 미달' : '유효 표본 또는 기록 부족') : activeAxes.slice(0, 2).map(axis => `${axis.name} ${fmt(entry.scores[axis.key].value)}백분위`).join(' · ');
+      const checkpoints = scoutingCheckpoints(row);
       return `<article class="candidate">
         <div class="rank">${entry.rank ? entry.rank+'<small>위</small>' : '—'}</div>
-        <div><h3>${esc(row.name)}</h3><p class="muted player-meta">${esc(row.team)} · ${esc(C.positionText(row.position))} · ${row.stats.pa}타석</p></div>
-        <div class="candidate-notes"><p><strong>${entry.rank ? '추천 근거' : '순위 보류'}</strong> ${esc(evidence)}</p><p><strong>검토 사항</strong> ${esc(cautions.join(' · ') || '시즌 기록의 재현성과 수비 출전 확인')}</p></div>
+        <div><h3>${esc(row.name)}</h3><p class="muted player-meta">${esc(row.team)} · ${pitching ? '' : esc(C.positionText(row.position))+' · '}${volumeText(row)}</p></div>
+        <div class="candidate-notes"><p><strong>${entry.rank ? '추천 근거' : '순위 보류'}</strong> ${esc(evidence)}</p>${checkpoints.length ? `<p><strong>스카우팅 체크포인트</strong> ${esc(checkpoints.join(' / '))}</p>` : ''}</div>
         <div class="candidate-actions"><strong class="score">${entry.rank ? fmt(entry.value)+'<small>점</small>' : '—'}</strong>
         <label class="select-player"><input type="checkbox" data-candidate="${esc(key)}" ${selected.has(key)?'checked':''} aria-label="${esc(playerLabel(row))} 검토 대상 선택">선택</label></div>
       </article>`;
-    }).join('') : '<p class="empty">'+(query ? '시즌·포지션에 맞는 검색 결과가 없습니다.' : '순위를 산출할 수 있는 후보가 없습니다.')+'</p>';
+    }).join('') : '<p class="empty">'+(query ? (pitching ? '선택 시즌에 검색 결과가 없습니다.' : '시즌·포지션에 맞는 검색 결과가 없습니다.') : '순위를 산출할 수 있는 후보가 없습니다.')+'</p>';
     $('more-candidates').hidden = visibleCount >= candidates.length;
   }
 
   function search(event) {
     event?.preventDefault();
     const minimum = Number($('minimum').value);
-    const weights = Object.fromEntries(A.comparisonAxes.map(({key}) => {
-      const value = $('weight-' + key).value;
-      return [key, value === '' ? NaN : Number(value)];
-    }));
+    const profile = $('profile').value;
+    const weights = profile === 'custom'
+      ? Object.fromEntries(axes.map(({key})=>[key,Number($('weight-' + key).value)]))
+      : ranking.presets[profile];
     const message = $('form-message');
-    if (!Number.isInteger(minimum) || minimum < 1 || !P.active(weights).length ||
-        Object.values(weights).some(value => !Number.isInteger(value) || value < 0 || value > 10)) {
-      message.textContent = '최소 타석은 1 이상, 지표 비중은 0~10의 정수로 입력하세요. 양수 비중이 하나 이상 필요합니다.';
-      message.hidden = false;
-      return;
-    }
-    message.hidden = true;
+    const issue = !ranking.active(weights).length ? '모든 가중치가 0입니다. 지표를 하나 이상 1 이상으로 올려주세요.'
+      : !Number.isInteger(minimum) || minimum < 1 ? `최소 ${unit}을 1 이상의 정수로 입력하세요.` : '';
+    message.hidden = !issue;
+    message.textContent = issue ? issue + (applied ? ' 아래에는 마지막으로 계산한 순위를 표시합니다.' : '') : '';
+    if (issue) return;
     const year = Number($('season').value), position = $('position').value;
-    const pool = P.poolFor(engine, year, position, minimum);
-    const entries = P.evaluate(pool, weights);
+    $('switch-batting').setAttribute('href',`?mode=batting&year=${year}`);
+    $('switch-pitching').setAttribute('href',`?mode=pitching&year=${year}`);
+    const pool = poolFor(year,position,minimum);
+    const entries = ranking.evaluate(pool,weights);
     ranked = entries.filter(entry => entry.rank);
     visibleCount = pageSize;
-    applied = {weights, year, position, minimum, poolSize:pool.length, profile:profiles[$('profile').value]};
-    $('pool-summary').textContent = `${year}년 · ${position ? C.positionText(position) : '전체 포지션'} · ${minimum}타석 이상 ${pool.length}명 · ${applied.profile} · 산출 ${ranked.length}명 · 보류 ${entries.length-ranked.length}명 · ${metadata.season_status?.[year] || '시즌 확정 여부 미확인'}`;
-    const counts = P.active(weights).map(axis => `${axis.name} ${fmt(weights[axis.key],0)} 비중 · 유효 ${entries[0]?.scores[axis.key].n ?? 0}명`);
+    applied = {weights, year, position, minimum, poolSize:pool.length, profile:profiles[profile]};
+    $('pool-summary').textContent = `${year}년 · ${pitching ? '전체 투수' : position ? C.positionText(position) : '전체 포지션'} · ${minimum}${unit} 이상 ${pool.length}명 · ${applied.profile} · 산출 ${ranked.length}명 · 보류 ${entries.length-ranked.length}명 · ${metadata.season_status?.[year] || '시즌 확정 여부 미확인'}`;
+    const counts = ranking.active(weights).map(axis => `${axis.name} ${fmt(weights[axis.key],0)} 비중 · 유효 ${entries[0]?.scores[axis.key].n ?? 0}명`);
     $('candidate-method').textContent = counts.join(' / ');
     renderCandidates();
   }
@@ -111,30 +170,69 @@
     return drafts.get(key);
   }
 
-  function trend(row) {
-    const history = P.timeline(engine, records, row, 3);
-    if (!history) return '<p>동일 선수 ID의 출생 정보가 충돌해 시즌 연결을 보류합니다.</p>';
-    const recorded = history.map(item=>item.row).filter(season=>Number.isFinite(season?.index));
-    const first = recorded[0], last = recorded.at(-1);
-    const summary = recorded.length > 1
-      ? `${first.year}→${last.year}년 리그 대비 OPS ${signed(last.index-first.index)}점`
-      : '비교 가능한 OPS 지수가 2시즌 미만입니다.';
-    return `<p><strong>${summary}</strong></p>` + table(['시즌','타석','OPS','OPS 지수'],history.map(item=>
-      item.row ? [item.year, item.row.stats.pa, fmt(item.row.stats.ops,3), fmt(item.row.index) + (item.row.stats.pa < A.comparisonMinPA ? ' (소타석)' : '')]
-        : [item.year,item.rawPA ?? '—','—',item.hasRaw?'분석 제외':'기록 없음']));
+  function trendHistory(row, axis) {
+    const history = pitching
+      ? Array.from({length:3},(_,i)=>row.year-2+i).filter(year=>year>=firstSeason)
+          .map(year=>({year,row:engine.lookup.get(C.selectionKey(row.id,year))}))
+      : P.timeline(engine,records,row,3);
+    if (!history) return [];
+    return history.map(({year,row:season,hasRaw,rawPA})=>{
+      if (!season) return {year,value:null,sample:rawPA==null ? '' : rawPA+'타석',missing:hasRaw?'분석 제외':'기록 없음'};
+      const value = pitching ? season.stats[axis.key] : A.comparisonMetric(season,axis).actual;
+      return {year,value,sample:volumeText(season),lowSample:volume(season)<defaultMinimum,missing:'지표 결측'};
+    });
+  }
+
+  function trendChange(points, axis, format) {
+    if (!points.length) return '출생 정보 불일치로 추세 비교 보류';
+    const qualified = points.filter(point=>Number.isFinite(point.value)&&!point.lowSample);
+    if (qualified.length<2) return `${defaultMinimum}${unit} 이상 유효 기록 2시즌 미만 · 판단 보류`;
+    const before = qualified[0], after = qualified.at(-1);
+    const previous = format(before.value), latest = format(after.value);
+    const direction = previous===latest ? '변화 없음' : (after.value-before.value)*(axis.direction??1)>0 ? '개선' : '하락';
+    return `${before.year}→${after.year}년 ${direction} · ${previous} → ${latest}`;
+  }
+
+  function renderTrend() {
+    const axis = axes.find(item=>item.key===$('trend-metric').value);
+    const label = axis.code+' '+trendNames[axis.key];
+    const format = value => raw(value,axis.key);
+    const series = [...selected.values()].map(({row})=>({name:playerLabel(row),points:trendHistory(row,axis)}));
+    $('trend-direction').textContent = `${label} · ${(axis.direction??1)>0?'높을수록':'낮을수록'} 유리`;
+    $('trend-plot').innerHTML = V.seasonTrend(series,label,format);
+    $('trend-summary').innerHTML = series.map(({name,points})=>`<section>
+      <h4>${esc(name)}</h4>
+      <p>${esc(trendChange(points,axis,format))}</p>
+      <p class="muted">${points.map(point=>{
+        const parts = [point.sample,Number.isFinite(point.value) ? (point.lowSample?'소표본':'') : point.missing];
+        return esc(point.year+'년 '+parts.filter(Boolean).join(' · '));
+      }).join(' / ')}</p>
+    </section>`).join('');
   }
 
   function similar(row) {
+    if (pitching) {
+      const matches = engine.similar(row);
+      return matches.length ? `<ol class="similar-list">${matches.map(({row:peer})=>{
+        const diffs = axes.slice(0,3).map(({key,code})=>`${code} ${signed((peer.stats[key]-row.stats[key])*(key==='hr'?1:100),2)}${key==='hr'?'':'%p'}`);
+        return `<li><strong>${esc(playerLabel(peer))}</strong><span>${diffs.join(' · ')}</span></li>`;
+      }).join('')}</ol>` : '<p>이닝·필수 기록 또는 비교 표본이 부족합니다.</p>';
+    }
     const matches = engine.similar(row, A.comparisonMinPA).slice(0, 3);
     return matches.length ? `<ol class="similar-list">${matches.map(({row:peer, differences}) =>
       `<li><strong>${esc(playerLabel(peer))}</strong><span>OPS 지수 ${signed(differences.opsIndex)}점 · ISO ${signed(differences.iso,3)} · 삼진율 ${signed(differences.k,2)}%p</span></li>`
     ).join('')}</ol>` : '<p>타석·필수 기록 또는 과거 비교 표본이 부족합니다.</p>';
   }
 
+  function pitchingDetails(stats) {
+    return `<h4>시즌 결과와 등판 기록</h4>` + table(['ERA','이닝','경기','세이브','홀드'],[[
+      fmt(stats.era,2),pitchingModel.formatIP(stats.outs),fmt(stats.g,0),fmt(stats.sv,0),fmt(stats.hld,0),
+    ]]);
+  }
   function playerReport(evaluation) {
-    const {row, axes, poolSize, positionKnown, provisional} = evaluation;
+    const {row, axes:playerAxes, poolSize, positionKnown, provisional} = evaluation;
     const key = keyOf(row), entry = selected.get(key);
-    const rated = axes.filter(axis=>Number.isFinite(axis.score)).sort((a,b)=>b.score-a.score);
+    const rated = playerAxes.filter(axis=>Number.isFinite(axis.score)).sort((a,b)=>b.score-a.score);
     const describe = list => list.slice(0,2).map(axis=>`${axis.name} ${fmt(axis.score)}백분위`).join(' · ');
     const high = describe(rated.filter(axis=>axis.score>=75));
     const low = describe([...rated].reverse().filter(axis=>axis.score<=25));
@@ -146,23 +244,23 @@
     const reasons = {missing:'원자료 결측',invalid:'계산 불가',position:'포지션 미확인',sample:'유효 표본 5명 미만'};
     const source = metadata.season_status?.[row.year] || '확정 여부 미확인';
     return `<article class="player-report panel">
-      <header><h3>${esc(row.name)}</h3><p class="muted">${esc(row.team)} · ${row.year}년 · ${esc(C.positionText(row.position))} · ${row.stats.pa}타석</p>
+      <header><h3>${esc(row.name)}</h3><p class="muted">${esc(row.team)} · ${row.year}년 · ${pitching ? '' : esc(C.positionText(row.position))+' · '}${volumeText(row)}</p>
       </header>
       <section data-analysis="overview"><p class="priority"><strong>검토 우선순위</strong> <span data-priority-label>${priority}</span></p>
         <p><strong>강점</strong> ${high || (rated.length ? '75백분위 이상인 지표 없음' : '비교 점수 없음')}</p>
         <p><strong>약점</strong> ${low || (rated.length ? '25백분위 이하인 지표 없음' : '비교 점수 없음')}</p>
-        <p class="muted">${positionKnown ? `시즌·포지션 비교군 ${poolSize}명` : '세부 포지션 미확인으로 상대평가 보류'}${provisional ? ' · 소타석 참고' : ''} · ${esc(source)}</p>
+        <p class="muted">${positionKnown ? `${pitching ? '동일 시즌' : '시즌·포지션'} 비교군 ${poolSize}명` : '세부 포지션 미확인으로 상대평가 보류'}${provisional ? (pitching ? ' · 적은 이닝 참고' : ' · 소타석 참고') : ''} · ${esc(source)}</p>
         <details data-print-expand><summary>실제 기록과 지표별 표본</summary>
-          ${entry.entry ? `<p class="candidate-fit">${esc(entry.scope.profile)} 탐색 ${entry.entry.rank}위 · ${fmt(entry.entry.value)}점 · ${entry.scope.position ? esc(C.positionText(entry.scope.position)) : '전체 포지션'} ${entry.scope.minimum}타석 이상 ${entry.scope.poolSize}명</p>` : ''}
-          ${table(['지표','실제 기록','백분위','유효 표본'],axes.map(axis=>[
+          ${entry.entry ? `<p class="candidate-fit">${esc(entry.scope.profile)} 탐색 ${entry.entry.rank}위 · ${fmt(entry.entry.value)}점 · ${pitching ? '전체 투수' : entry.scope.position ? esc(C.positionText(entry.scope.position)) : '전체 포지션'} ${entry.scope.minimum}${unit} 이상 ${entry.scope.poolSize}명</p>` : ''}
+          ${table(['지표','실제 기록','백분위','유효 표본'],playerAxes.map(axis=>[
             `${axis.name} (${axis.code})`,raw(axis.actual,axis.key),axis.score===null ? reasons[axis.reason] : fmt(axis.score),`${axis.n}명`
           ]))}
+          ${pitching ? pitchingDetails(row.stats) : ''}
         </details>
       </section>
-      <section data-analysis="trend"><h4>최근 3시즌 성장 추세</h4>${trend(row)}</section>
-      <section data-analysis="similar"><h4>유사 선수</h4><p class="muted">과거 타격 성향이 가까운 시즌 · 차이는 유사 선수 기준</p>${similar(row)}</section>
+      <section data-analysis="similar"><h4>유사 선수</h4><p class="muted">${pitching ? '탈삼진·볼넷·피홈런 백분위가 가까운 시즌 · 차이는 유사 선수 − 평가 선수' : '과거 타격 성향이 가까운 시즌 · 차이는 유사 선수 기준'}</p>${similar(row)}</section>
       <section data-analysis="field" class="field-review"><h4>현장 확인</h4>
-        <p>수비 위치별 출전과 수비 동작, 주루 판단, 부상·회복 상태, 계약 조건을 확인하세요.</p>
+        <p>${pitching ? '등판 역할·등판 간격, 구속·구종·회전수, 부상·회복 상태와 계약 조건을 현장에서 확인하세요.' : '수비 위치별 출전과 수비 동작, 주루 판단, 부상·회복 상태, 계약 조건을 확인하세요.'}</p>
         <label class="screen-only">검토 우선순위<select data-review="${esc(key)}" data-field="5">${priorities.map(value=>`<option value="${value}" ${value===priority?'selected':''}>${value}</option>`).join('')}</select></label>
         <label class="screen-only">스카우트 관찰 메모<textarea data-review="${esc(key)}" data-field="3" rows="3">${esc(note)}</textarea></label>
         <p class="muted screen-only" role="status" data-storage="${esc(key)}">${readable?'이 브라우저에 자동 저장됩니다.':'이 브라우저에서 저장된 메모를 읽을 수 없습니다.'}</p>
@@ -180,19 +278,21 @@
       $('report-content').textContent = '';
       return;
     }
-    const evaluations = A.compareBatters(engine,[...selected.values()].map(({row})=>row),true);
-    const radar = V.radar(A.comparisonAxes.map((axis,i)=>`${axis.code} ${axisNames[i]}`),evaluations.map(item=>({
-      name:playerLabel(item.row), values:item.axes.map(axis=>axis.score), provisional:item.provisional,
+    const players = [...selected.values()].map(({row})=>row);
+    const evaluations = pitching ? players.map(engine.compare) : A.compareBatters(engine,players,true);
+    const radar = V.radar(axes.map((axis,i)=>`${axis.code} ${axisNames[i]}`),evaluations.map(item=>({
+      name:playerLabel(item.row), values:item.axes.map(axis=>axis.score), provisional:item.provisional, provisionalText:pitching ? '적은 이닝 참고' : undefined,
     })),{comparison:true, compact:true});
     $('radar-content').innerHTML = `${radar}<div class="radar-meta">
-      <p class="muted radar-scope">같은 시즌 · 세부 포지션이 겹치는 ${A.comparisonMinPA}타석 이상 타자 기준</p>
+      <p class="muted radar-scope">${pitching ? `같은 시즌 · ${defaultMinimum}이닝 이상 투수 기준` : `같은 시즌 · 세부 포지션이 겹치는 ${defaultMinimum}타석 이상 타자 기준`}</p>
       <details class="method" data-print-expand><summary>계산 방식과 자료 범위</summary>
-        <p>백분위 = (본인보다 불리한 값 수 + 동률 수 × 0.5) ÷ 지표별 유효 표본 × 100. 기준 충족 시 본인을 포함하며 삼진율은 낮을수록 유리합니다. 축별 유효 표본이 5명 미만이면 점수를 보류합니다. 선수별 시즌·포지션에 따라 비교군이 달라질 수 있습니다.</p>
-        <p>${A.comparisonAxes.map(axis=>esc(axis.code + ' = ' + axis.formula)).join(' · ')}. 타석당 도루는 기록된 도루 빈도입니다.</p>
-        <p>OPS 지수는 선수 OPS ÷ 해당 시즌 보유 기록의 합산 OPS × 100입니다. 유사 선수는 ${A.comparisonMinPA}타석 이상 과거 시즌에서 출루율·삼진율·ISO·볼넷률·OPS·홈런률의 표준화 거리로 선정합니다. 각 지표를 해당 시즌 리그 값으로 나누고, 삼진율은 방향을 뒤집습니다. 선수당 가장 가까운 한 시즌을 표시하며 차이는 유사 선수 − 평가 선수입니다.</p>
+        <p>백분위 = (본인보다 불리한 값 수 + 동률 수 × 0.5) ÷ 지표별 유효 표본 × 100. 기준 충족 시 본인을 포함합니다. ${pitching ? 'K%는 높을수록, BB%·HR/9·WHIP은 낮을수록 유리합니다. 비교군은 선수별 시즌에 따라 달라집니다.' : '삼진율은 낮을수록 유리합니다. 선수별 시즌·포지션에 따라 비교군이 달라질 수 있습니다.'} 축별 유효 표본이 5명 미만이면 점수를 보류합니다.</p>
+        <p>${axes.map(axis=>esc(axis.code + ' = ' + axis.formula)).join(' · ')}${pitching ? '. K%·BB%·HR/9는 투구 특성, WHIP은 허용 출루 결과입니다. ERA는 상세 기록에서 확인할 수 있습니다.' : '. 타석당 도루는 기록된 도루 빈도입니다.'}</p>
+        <p>${pitching ? `유사 선수는 해당 시즌과 이전 시즌의 ${defaultMinimum}이닝 이상 기록에서 K%·BB%·HR/9의 시즌 내 백분위 거리가 가까운 순으로 선수당 한 시즌을 고릅니다. 이 세 지표 중 점수를 계산할 수 없는 항목이 있으면 유사도에서 제외합니다.` : 'OPS 지수는 선수 OPS ÷ 해당 시즌 보유 기록의 합산 OPS × 100입니다. 유사 선수는 '+defaultMinimum+'타석 이상 과거 시즌에서 출루율·삼진율·ISO·볼넷률·OPS·홈런률의 표준화 거리로 선정합니다. 각 지표를 해당 시즌 리그 값으로 나누고, 삼진율은 방향을 뒤집습니다. 선수당 가장 가까운 한 시즌을 표시하며 차이는 유사 선수 − 평가 선수입니다.'}</p>
         <p>자료 ${esc(metadata.source_file || '동봉 CSV')} · 원 수집처 ${esc(metadata.original_source || '미확인')} · 수집일 ${esc(metadata.collected_at || '미확인')}</p>
       </details></div>`;
     $('report-content').innerHTML = `<div class="player-grid" style="--players:${evaluations.length}">${evaluations.map(playerReport).join('')}</div>`;
+    renderTrend();
     setTab(activeTab);
   }
 
@@ -204,6 +304,8 @@
       button.tabIndex = active ? 0 : -1;
     }
     $('analysis-panel').setAttribute('aria-labelledby','tab-'+tab);
+    $('trend-panel').hidden = tab !== 'trend';
+    $('report-content').hidden = tab === 'trend';
     for (const panel of $('report-content').querySelectorAll('[data-analysis]')) {
       panel.hidden = panel.dataset.analysis !== tab;
     }
@@ -236,22 +338,45 @@
   }
 
   try {
-    records = battingData;
-    metadata = typeof battingMetadata === 'undefined' ? {} : battingMetadata;
-    engine = A.create(records);
+    $('dashboard-header').hidden = false;
+    $('dashboard-main').hidden = false;
+    $('dashboard-title').textContent = pitching ? 'KBO 투수 스카우팅' : 'KBO 타자 스카우팅';
+    $('switch-'+mode).setAttribute('aria-current','page');
+    records = pitching ? pitchingData : battingData;
+    metadata = pitching ? pitchingMetadata : typeof battingMetadata === 'undefined' ? {} : battingMetadata;
+    engine = pitching ? pitchingModel.create(records) : A.create(records);
     const years = [...engine.byYear.keys()].sort((a,b)=>b-a);
     if (!years.length) throw Error('분석할 시즌 기록이 없습니다.');
-    const params = new URLSearchParams(location.search);
+    firstSeason = years.at(-1);
+    if (pitching) {
+      $('dashboard').setAttribute('data-mode','pitching');
+      $('position-control').hidden = true;
+      $('profile-label').textContent = profileLabel;
+      $('radar-heading').textContent = '4개 투구 지표';
+      $('minimum-summary').textContent = '최소 이닝 설정';
+      $('minimum-label').textContent = '최소 이닝';
+      $('minimum').value = String(defaultMinimum);
+      $('candidate-explanation').textContent = '지표별 백분위의 가중평균입니다. 동률은 절반씩 반영합니다. K%는 높을수록, BB%·HR/9·WHIP은 낮을수록 유리합니다. 지표별 유효 표본이 5명 미만이거나 필수 기록이 없으면 순위를 보류합니다.';
+    }
     $('season').innerHTML = years.map(year=>option(year,year)).join('');
     $('season').value = String(years.includes(Number(params.get('year'))) ? params.get('year') : years[0]);
     $('position').innerHTML = option('','전체 포지션') + Object.entries(C.positionNames).map(([key,label])=>option(key,label)).join('');
     $('profile').innerHTML = Object.entries(profiles).map(([key,label])=>option(key,label)).join('');
-    $('weights').innerHTML = A.comparisonAxes.map(axis=>
-      `<label>${esc(axis.name)}<input id="weight-${axis.key}" type="number" min="0" max="10" step="1"></label>`).join('');
-    $('profile').value = 'onbase';
-    usePreset('onbase');
+    $('trend-metric').innerHTML = axes.map(axis=>option(axis.key,axis.code+' '+trendNames[axis.key])).join('');
+    $('trend-metric').onchange = renderTrend;
+    $('weights').innerHTML = axes.map(({key,name})=>
+      `<div class="weight-control"><label for="weight-${key}">${esc(name)}</label><span id="weight-value-${key}" class="weight-value" aria-hidden="true"></span><input id="weight-${key}" type="range" min="0" max="10" step="1"></div>`).join('');
+    $('profile').value = pitching ? 'balanced' : 'onbase';
+    let lastPreset = $('profile').value, customStarted = false;
     $('profile').onchange = () => {
-      if ($('profile').value !== 'custom') usePreset($('profile').value);
+      const profile = $('profile').value;
+      $('custom-weights').hidden = profile !== 'custom';
+      if (profile !== 'custom') lastPreset = profile;
+      else if (!customStarted) {
+        for (const {key} of axes) $('weight-' + key).value = ranking.presets[lastPreset][key];
+        showWeightValues();
+        customStarted = true;
+      }
       search();
     };
     $('season').onchange = $('position').onchange = () => search();
@@ -273,7 +398,10 @@
       if (next < 0) $('player-search').focus();
       else inputs[next]?.focus();
     };
-    $('weights').oninput = () => { $('profile').value = 'custom'; };
+    $('weights').oninput = () => {
+      showWeightValues();
+      search();
+    };
     $('discover-form').noValidate = true;
     $('discover-form').onsubmit = search;
     $('more-candidates').onclick = () => {

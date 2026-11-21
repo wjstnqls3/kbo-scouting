@@ -4,41 +4,82 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>KBO 스카우팅 보드</title>
-  <link rel="stylesheet" href="scout-workflow.css">
+  <link rel="stylesheet" href="scout-workflow.css?v=season-trend">
   <script defer src="data.js"></script>
   <script defer src="metadata.js"></script>
   <script defer src="position-data.js"></script>
   <script defer src="core.js"></script>
   <script defer src="analytics.js"></script>
-  <script defer src="charts.js"></script>
+  <script defer src="charts.js?v=season-trend"></script>
   <script defer src="portfolio-model.js"></script>
-  <script defer src="scout-workflow.js"></script>
+  <script defer src="pitching-data.js"></script>
+  <script defer src="pitching.js?v=separate-profiles"></script>
+  <script defer src="scout-workflow.js?v=season-trend"></script>
 </head>
 <body>
-  <header class="masthead">
+  <section id="start-screen" class="start-screen" hidden aria-labelledby="start-title">
+    <div class="shell start-content">
+      <h1 id="start-title">KBO 스카우팅 보드</h1>
+      <p>시즌 기록으로 후보를 발굴하고 선수의 강점과 검토 사항을 확인하세요.</p>
+      <nav class="start-links" aria-label="분석 선택">
+        <a class="start-card" href="?mode=batting">
+          <span class="motion-preview batter-motion" aria-hidden="true">
+            <span class="motion-athlete">
+              <span class="motion-head"></span><span class="motion-torso"></span>
+              <span class="motion-leg motion-leg-back"></span><span class="motion-leg motion-leg-front"></span>
+              <span class="motion-arm"><span class="motion-bat"></span></span>
+            </span>
+            <span class="motion-arc"></span><span class="motion-ball"></span>
+          </span>
+          <span>타자 분석</span>
+        </a>
+        <a class="start-card" href="?mode=pitching">
+          <span class="motion-preview pitcher-motion" aria-hidden="true">
+            <span class="motion-athlete">
+              <span class="motion-head"></span><span class="motion-torso"></span>
+              <span class="motion-leg motion-leg-back"></span><span class="motion-leg motion-leg-front"></span>
+              <span class="motion-arm"></span><span class="motion-glove"></span>
+            </span>
+            <span class="motion-ball"></span>
+          </span>
+          <span>투수 분석</span>
+        </a>
+      </nav>
+    </div>
+  </section>
+  <header id="dashboard-header" class="masthead" hidden>
     <div class="shell header-inner">
-      <div><h1>KBO 스카우팅 보드</h1><p>후보 발굴과 선수 평가</p></div>
-      <button type="button" id="print-report" class="screen-only" disabled>인쇄 / PDF 저장</button>
+      <div><h1 id="dashboard-title">KBO 스카우팅 보드</h1><p>후보 발굴과 선수 평가</p></div>
+      <div class="header-actions screen-only">
+        <nav class="mode-switch" aria-label="분석 전환">
+          <a id="switch-batting" href="?mode=batting">타자 분석</a>
+          <a id="switch-pitching" href="?mode=pitching">투수 분석</a>
+        </nav>
+        <button type="button" id="print-report" disabled>인쇄 / PDF 저장</button>
+      </div>
     </div>
   </header>
-  <main class="shell">
+  <main id="dashboard-main" class="shell" hidden>
     <p id="load-status" role="status">선수 기록을 불러오는 중입니다.</p>
     <div id="dashboard" hidden>
       <form id="discover-form" class="panel screen-only">
         <div class="filters">
           <label>시즌<select id="season"></select></label>
-          <label>포지션<select id="position"></select></label>
-          <label>타격 유형<select id="profile"></select></label>
+          <label id="position-control">포지션<select id="position"></select></label>
+          <label><span id="profile-label">타격 유형</span><select id="profile"></select></label>
           <label>선수 검색<input type="search" id="player-search" placeholder="이름 또는 초성" aria-controls="candidates"></label>
           <button type="submit">조건 적용</button>
         </div>
+        <fieldset id="custom-weights" hidden aria-describedby="weight-help">
+          <legend>사용자 지정 가중치</legend>
+          <div id="weights" class="weights"></div>
+          <p id="weight-help" class="muted">0~10 · 0인 지표는 후보 점수에서 제외</p>
+        </fieldset>
         <details class="advanced">
-          <summary>최소 타석과 지표 비중</summary>
+          <summary id="minimum-summary">최소 타석 설정</summary>
           <div class="advanced-fields">
-            <label>최소 타석<input id="minimum" type="number" min="1" step="1" value="200" required></label>
-            <div id="weights" class="weights"></div>
+            <label><span id="minimum-label">최소 타석</span><input id="minimum" type="number" min="1" step="1" value="200" required></label>
           </div>
-          <p class="muted">비중은 0~10입니다. 0으로 설정하면 해당 지표를 점수에서 제외합니다.</p>
         </details>
         <p id="form-message" role="status" hidden></p>
       </form>
@@ -54,7 +95,7 @@
           </div>
           <details class="method">
             <summary>후보 점수 산출 기준</summary>
-            <p>지표별 백분위의 가중평균입니다. 동률은 절반씩 반영하고, 삼진율은 낮을수록 유리합니다. 지표별 유효 표본이 5명 미만이거나 필수 기록이 없으면 순위를 보류합니다.</p>
+            <p id="candidate-explanation">지표별 백분위의 가중평균입니다. 동률은 절반씩 반영하고, 삼진율은 낮을수록 유리합니다. 지표별 유효 표본이 5명 미만이거나 필수 기록이 없으면 순위를 보류합니다.</p>
             <div id="candidate-method"></div>
           </details>
         </section>
@@ -65,7 +106,7 @@
           </header>
           <div id="selected-players" class="selected-players screen-only"></div>
           <p id="selection-message" class="screen-only" role="status" hidden></p>
-          <p id="report-empty" class="empty" hidden>후보를 선택하면 5축 레이더와 평가가 표시됩니다.</p>
+          <p id="report-empty" class="empty" hidden>후보를 선택하면 레이더와 평가가 표시됩니다.</p>
           <div id="radar-content"></div>
         </section>
       </div>
@@ -80,6 +121,15 @@
           </div>
         </header>
         <div id="analysis-panel" role="tabpanel" aria-labelledby="tab-overview" tabindex="0">
+          <section id="trend-panel" aria-labelledby="trend-heading" hidden>
+            <header class="trend-heading">
+              <h3 id="trend-heading">최근 3시즌 성장 추세</h3>
+              <label class="screen-only">추세 지표<select id="trend-metric"></select></label>
+              <p id="trend-direction" class="muted"></p>
+            </header>
+            <div id="trend-plot"></div>
+            <div id="trend-summary" class="trend-summary" aria-live="polite"></div>
+          </section>
           <div id="report-content"></div>
         </div>
       </section>

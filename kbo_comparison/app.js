@@ -60,7 +60,7 @@ async function startApp() {
     const options = allYears.filter(year => decadeOf(year) === decade).map(year =>
       `<label><input type="checkbox" name="browse-year" value="${year}" ${year === allYears[0] ? 'checked' : ''}><span>${year}년</span></label>`
     ).join('');
-    return `<details class="season-dropdown"><summary>${decade}년대 <span data-decade-count="${decade}"></span></summary><div class="season-dropdown-options">${options}</div></details>`;
+    return `<details class="season-dropdown"><summary>${decade}년대<span data-decade-count="${decade}" hidden></span></summary><div class="season-dropdown-options">${options}</div></details>`;
   }).join('');
   function selectedYears() { return $('browse-all-years').checked?allYears:values('browse-year').map(Number); }
   function metadataMarkup() {
@@ -244,6 +244,7 @@ async function startApp() {
     const selectedSeasonInputs = checked('browse-year');
     for (const label of document.querySelectorAll('[data-decade-count]')) {
       const count = selectedSeasonInputs.filter(input => decadeOf(Number(input.value)) === Number(label.dataset.decadeCount)).length;
+      label.hidden = count === 0;
       label.textContent = count ? `· ${count}개 선택` : '';
     }
     const years=new Set(selectedYears()),scope=$('leader-scope').value,teamMode=$('browse-team-leaders').checked;

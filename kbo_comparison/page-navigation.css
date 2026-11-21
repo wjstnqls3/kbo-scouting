@@ -96,7 +96,8 @@
   color:#083b2b;
   font-weight:700;
 }
-.season-dropdown > summary > span {
+.season-dropdown > summary > span:not([hidden]) {
+  margin-inline-start:4px;
   font-size:.85em;
   font-weight:500;
 }

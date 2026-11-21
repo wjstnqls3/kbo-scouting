@@ -76,9 +76,7 @@ try{
   $('lab-search-results').hidden=true;
   $('lab-search-note').hidden=true;
   $('player').innerHTML=option('','선수 선택')+candidates.map(r=>option(r.id,`${r.name} · ${r.team}${r.age===null?'':` · 연 나이 ${r.age}세`}`)).join('');
-  if(candidates.some(r=>r.id===old))$('player').value=old;
-  else if(preferred){$('player').value='';}
-  else if(!q){const best=[...candidates].sort((a,b)=>b.stats.pa-a.stats.pa)[0];if(best)$('player').value=best.id;}
+  $('player').value=candidates.some(r=>r.id===old)?old:'';
  }
  function switchPage(finder){$('finder-page').hidden=!finder;$('player-page').hidden=finder;$('tab-player').setAttribute('aria-pressed',String(!finder));$('tab-finder').setAttribute('aria-pressed',String(finder));}
  $('tab-player').onclick=()=>{switchPage(false);renderReport();};$('tab-finder').onclick=()=>{
@@ -197,7 +195,12 @@ try{
   const guide=`기본값 ${reference.minimum}타석 = 예정 팀 경기수 × 3.1의 소수점 버림. 규정 충족 ${reference.count}명 · 평균 ${reference.count ? fmt(reference.average,1)+'타석' : '미산출'}. 표본이 적으면 최소 타석을 낮춰 보세요.`;
   $('minpa-guide').textContent=guide;
   const r=override?.id?override:engine.lookup.get(`${$('player').value}|${$('year').value}`);
-  if(!r){$('report').innerHTML='<p class="panel">검색 결과 없음</p>';$('print').disabled=true;return;}$('print').disabled=false;
+  if(!r){
+   $('report').innerHTML='<p class="panel">선수·분석 설정에서 이름을 검색하고 분석할 선수를 선택하세요.</p>';
+   $('print').disabled=true;
+   return;
+  }
+  $('print').disabled=false;
   const min=manualMinPA?+$('minpa').value:KBOCore.requiredPA(r.year),settings={minPA:min,era:$('era').value,group:$('group').value};
   const pool=engine.cohort(r,settings),l=engine.league.get(r.year),s=r.stats,change=engine.growth(r,min),similar=engine.similar(r,min);
   const averagePA=pool.length ? pool.reduce((sum,x)=>sum+x.stats.pa,0)/pool.length : null;

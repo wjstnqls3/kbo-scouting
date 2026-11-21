@@ -54,7 +54,14 @@ async function startApp() {
     makeFilter(`${kind}-positions`,`${kind}-position`,positionNames);
     makeFilter(`${kind}-teams`,`${kind}-team`,teamNames);
   }
-  $('browse-year-options').innerHTML=[...new Set(allYears.map(y=>Math.floor(y/10)*10))].map(decade=>`<div class="decade-row"><strong>${decade}년대</strong><div>${allYears.filter(y=>Math.floor(y/10)*10===decade).map((year)=>`<label><input type="checkbox" name="browse-year" value="${year}" ${year===allYears[0]?'checked':''}><span>${year}</span></label>`).join('')}</div></div>`).join('');
+  const decadeOf = year => Math.floor(year / 10) * 10;
+  const decades = [...new Set(allYears.map(decadeOf))];
+  $('browse-year-options').innerHTML = decades.map(decade => {
+    const options = allYears.filter(year => decadeOf(year) === decade).map(year =>
+      `<label><input type="checkbox" name="browse-year" value="${year}" ${year === allYears[0] ? 'checked' : ''}><span>${year}년</span></label>`
+    ).join('');
+    return `<details class="season-dropdown"><summary>${decade}년대 <span data-decade-count="${decade}"></span></summary><div class="season-dropdown-options">${options}</div></details>`;
+  }).join('');
   function selectedYears() { return $('browse-all-years').checked?allYears:values('browse-year').map(Number); }
   function metadataMarkup() {
     const statusByYear=metadata.season_status||{};
@@ -234,12 +241,10 @@ async function startApp() {
     document.querySelectorAll('[data-chip]').forEach(button=>button.onclick=()=>{chips[+button.dataset.chip].action();browseLimit=10;renderBrowse();});
   }
   function renderBrowse() {
-    const yearSummary = $('browse-year-summary');
-    if (yearSummary) {
-      const years = selectedYears();
-      yearSummary.textContent = $('browse-all-years').checked ? '전체 시즌'
-        : years.length === 1 ? `${years[0]}년`
-        : `${years.length}개 시즌 선택`;
+    const selectedSeasonInputs = checked('browse-year');
+    for (const label of document.querySelectorAll('[data-decade-count]')) {
+      const count = selectedSeasonInputs.filter(input => decadeOf(Number(input.value)) === Number(label.dataset.decadeCount)).length;
+      label.textContent = count ? `· ${count}개 선택` : '';
     }
     const years=new Set(selectedYears()),scope=$('leader-scope').value,teamMode=$('browse-team-leaders').checked;
     const leagueOnly=$('browse-leaders').checked;

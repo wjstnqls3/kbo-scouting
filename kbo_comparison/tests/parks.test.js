@@ -1,0 +1,21 @@
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const S=require('../scouting.js');
+const P=require('../parks.js');
+test('과거 선수에 현재 구장을 자동 배정하지 않고 선택 구장 설명만 갱신',()=>{
+  let change;
+  const select={dataset:{parkPlayer:'a'},value:'LG',addEventListener:(event,fn)=>{change=fn;}};
+  const result={dataset:{parkResult:'a'},innerHTML:''};
+  const panel={innerHTML:'',querySelectorAll:q=>q==='[data-park-player]'?[select]:[result]};
+  const context={KBOScouting:S,KBOParks:P,document:{getElementById:()=>panel}};
+  vm.createContext(context);vm.runInContext(fs.readFileSync(require.resolve('../scouting-ui.js'),'utf8'),context);
+  const row={Id:'a',Player:'가상 타자',Season:2000,Age:25,Team:'해태',Position:'1B',G:100,PA:400,AB:350,H:100,HR:20,TB:160,BB:40,HBP:5,SF:5,SO:80};
+  const targets=new Map([['a',{id:'a',name:'가상 타자',end:2000}]]);
+  context.createScoutingView([row])(targets);
+  assert.match(panel.innerHTML,/검토할 구단을 선택/);
+  assert.match(panel.innerHTML,/구장 보정 등급: 판정 보류/);
+  change();assert.match(result.innerHTML,/잠실야구장/);assert.match(result.innerHTML,/선택 시즌의 규격이나 실제 출전 구장을 뜻하지 않습니다/);
+  select.value='NC';change();assert.match(result.innerHTML,/창원NC파크/);
+});

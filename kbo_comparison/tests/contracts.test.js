@@ -1,0 +1,32 @@
+const test=require('node:test'),assert=require('node:assert/strict');
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+const contracts=require('../contract-data'),scouting=require('../scouting');
+test('선택 시즌 연봉만 매칭하고 FA 총액을 시즌 연봉으로 추정하지 않음',()=>{
+ assert.equal(contracts.lookup('71564',2011,'롯데').salary.amount,630000000);
+ assert.equal(contracts.lookup('52605',2025,'KIA').salary.amount,500000000);
+ assert.equal(contracts.lookup('52605',2026,'KIA').salary,null);
+ assert.equal(contracts.lookup('52605',2025,'LG').salary,null);
+ const park=contracts.lookup('75125',2022,'KT');
+ assert.equal(park.salary,null);assert.equal(park.contracts[0].total,3000000000);
+ assert.equal(contracts.lookup('75125',2021).contracts.length,0);
+ assert.equal(contracts.lookup('75125',2025).contracts.length,0);
+ assert.equal(contracts.lookup('62907',2027).contracts.length,1);
+ assert.equal(contracts.lookup('62907',2028).contracts.length,0,'조건부 연장 실행을 추측하지 않음');
+ assert.equal(contracts.lookup('62404',2025).contracts[0].kind,'비FA 다년 계약');
+});
+test('연봉·FA·옵션과 출처 표시, 미등록 시즌은 공개 금액 미확인',()=>{
+ const context={KBOContractData:contracts,KBOScouting:scouting,KBOCharts:{esc:x=>String(x??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;')}};
+ vm.createContext(context);vm.runInContext(fs.readFileSync(path.join(__dirname,'../scouting-context.js'),'utf8'),context);
+ const render=(id,year,team)=>context.KBOScoutingContext.render({id,year,team,index:110,stats:{pa:400}});
+ const known=render('71564',2021,'롯데');
+ assert.match(known,/8억 원/);assert.match(known,/FA/);assert.match(known,/26억 원/);assert.match(known,/옵션/);assert.match(known,/https:\/\/www.yna.co.kr/);
+ assert.match(render('71564',2011,'롯데'),/6억 3,000만 원/);
+ const unknown=render('unknown',2025,'LG');assert.match(unknown,/공개 금액 미확인/);assert.doesNotMatch(unknown,/금액 없음/);
+ assert.match(render('75125',2022,'KT'),/개별 시즌 연봉 미확인/);
+ assert.match(render('75125',2022,'KT'),/최대 총액 30억 원/);
+ assert.match(render('75125',2024,'삼성'),/2024-05-28/);
+ assert.match(render('75125',2024,'삼성'),/KT → 삼성/);
+ assert.match(render('75125',2025,'삼성'),/3억 8,000만 원/);
+ assert.match(render('74540',2024,'삼성'),/4년 · 2022–2025/);
+ assert.match(render('74540',2026,'삼성'),/2년 · 2026–2027/);
+});

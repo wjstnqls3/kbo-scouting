@@ -1,0 +1,32 @@
+.criteria { display:grid; grid-template-columns:repeat(auto-fit,minmax(135px,1fr)); gap:12px; }
+.criteria label, .memo-editor label { display:grid; gap:4px; }
+.criteria input, .criteria select, .memo-editor textarea { width:100%; min-width:0; }
+fieldset { margin-top:14px; border:1px solid #d6e1d8; border-radius:8px; }
+#candidate-table td { white-space:normal; vertical-align:top; }
+#candidate-table table { min-width:740px; }
+#portfolio-report table { white-space:normal; }
+#portfolio-report h3 { margin-top:1.5em; }
+.low-sample { background:#fff4d6; }
+.memo-editor { display:grid; gap:10px; }
+.memo-editor textarea { resize:vertical; padding:8px; border:1px solid #afc4b8; border-radius:6px; font:inherit; }
+.memo-print { display:none; }
+@media print {
+  .screen-only { display:none!important; }
+  .memo-print { display:block; white-space:pre-wrap; overflow-wrap:anywhere; }
+  #portfolio-report .table-wrap { overflow:visible; }
+  #portfolio-report table { width:100%; min-width:0; table-layout:auto; overflow-wrap:anywhere; }
+  #portfolio-report thead { display:table-header-group; }
+  #portfolio-report tr { break-inside:avoid; }
+  #portfolio-report h2, #portfolio-report h3, #portfolio-report h4 { break-after:avoid; }
+}
+
+@media screen {
+  main { width:100%; max-width:none; padding-inline:clamp(12px, 2vw, 32px); }
+  .masthead > div { max-width:none; }
+  main > .panel { width:100%; padding-inline:clamp(12px, 2vw, 32px); }
+  #report-content > article { padding-block:20px; border-top:1px solid #d6e1d8; }
+  #report-content > article > h3 { margin-top:0; }
+  #portfolio-report .table-wrap { width:100%; }
+  #portfolio-report table { min-width:42rem; }
+  #portfolio-report .memo-editor button { justify-self:start; }
+}

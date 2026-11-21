@@ -1,0 +1,11 @@
+{
+  "original_source": null,
+  "collected_at": null,
+  "season_status": {},
+  "source_file": "kbo_batting_stats_season_1982-2026.csv",
+  "packaged_at": "2026-11-15T04:07:45.076071+00:00",
+  "sha256": "a8e2e4818a0440b35a37004a9d16d4a663354b876a284ecf019eeb9153a02efd",
+  "row_count": 10209,
+  "min_season": 1982,
+  "max_season": 2026
+}

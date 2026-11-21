@@ -60,7 +60,7 @@ async function startApp() {
     const options = allYears.filter(year => decadeOf(year) === decade).map(year =>
       `<label><input type="checkbox" name="browse-year" value="${year}" ${year === allYears[0] ? 'checked' : ''}><span>${year}년</span></label>`
     ).join('');
-    return `<details class="season-dropdown"><summary>${decade}년대<span data-decade-count="${decade}" hidden></span></summary><div class="season-dropdown-options">${options}</div></details>`;
+    return `<details class="season-dropdown"><summary data-decade="${decade}">${decade}년대</summary><div class="season-dropdown-options">${options}</div></details>`;
   }).join('');
   function selectedYears() { return $('browse-all-years').checked?allYears:values('browse-year').map(Number); }
   function metadataMarkup() {
@@ -242,10 +242,11 @@ async function startApp() {
   }
   function renderBrowse() {
     const selectedSeasonInputs = checked('browse-year');
-    for (const label of document.querySelectorAll('[data-decade-count]')) {
-      const count = selectedSeasonInputs.filter(input => decadeOf(Number(input.value)) === Number(label.dataset.decadeCount)).length;
-      label.hidden = count === 0;
-      label.textContent = count ? `· ${count}개 선택` : '';
+    for (const summary of $('browse-year-options').querySelectorAll('[data-decade]')) {
+      const decade = Number(summary.dataset.decade);
+      const count = selectedSeasonInputs.filter(input => decadeOf(Number(input.value)) === decade).length;
+      const badge = count ? `<span class="decade-selection-count">· ${count}개 선택</span>` : '';
+      summary.innerHTML = `${decade}년대${badge}`;
     }
     const years=new Set(selectedYears()),scope=$('leader-scope').value,teamMode=$('browse-team-leaders').checked;
     const leagueOnly=$('browse-leaders').checked;

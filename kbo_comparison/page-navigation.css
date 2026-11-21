@@ -89,7 +89,7 @@
   border-radius:8px;
   background:#fff;
 }
-.season-dropdown:has(> summary > [data-decade-count]:not([hidden])) {
+.season-dropdown:has(> summary > .decade-selection-count) {
   border-color:#b2d5c6;
 }
 .season-dropdown > summary {
@@ -99,10 +99,7 @@
   color:#083b2b;
   font-weight:700;
 }
-.season-dropdown > summary > [data-decade-count][hidden] {
-  display:none !important;
-}
-.season-dropdown > summary > span:not([hidden]) {
+.season-dropdown > summary > .decade-selection-count {
   margin-inline-start:4px;
   font-size:.85em;
   font-weight:500;

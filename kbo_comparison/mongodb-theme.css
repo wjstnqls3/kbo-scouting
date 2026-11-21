@@ -116,6 +116,16 @@ input[type=checkbox] { accent-color: var(--brand-green-dark); }
   border-color: var(--brand-green-dark);
   font-weight: 800;
 }
+.position-filter input[name$="-position"][value="OF"]+span:not(.club-label) {
+  background: #f3eafb;
+  border-color: #a782bf;
+  color: #542974;
+}
+.position-filter input[name$="-position"][value="OF"]:checked+span:not(.club-label) {
+  background: #6b368d;
+  border-color: #6b368d;
+  color: #fff;
+}
 .position-filter input:focus-visible+span {
   outline: 3px solid var(--brand-green-dark);
 }

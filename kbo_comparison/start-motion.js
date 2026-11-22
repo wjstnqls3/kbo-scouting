@@ -6,10 +6,10 @@
   animateYearReel();
   const duration = 3400;
   const ground = 91;
-  const skin = '#dfac82';
-  const pants = '#e5eee9';
-  const cleats = '#a5bfaf';
-  const ball = '#fff2d1';
+  const skin = '#9a8177';
+  const pants = '#a1a8b0';
+  const cleats = '#53606d';
+  const ball = '#384754';
   const pose = (head, shoulders, hips, backLeg, leadLeg, backArm, leadArm, bat = [0, 0]) =>
     [head, shoulders, hips, ...backLeg, ...leadLeg, ...backArm, ...leadArm, bat];
 
@@ -183,8 +183,8 @@
   function draw(ctx, throwing, frame, progress) {
     const [head, shoulders, hips, backKnee, backFoot, leadKnee, leadFoot,
       backElbow, backHand, leadElbow, leadHand, barrel] = frame;
-    const jersey = throwing ? '#a6e0d1' : '#eee4c7';
-    const shadow = throwing ? '#5f9d91' : '#a79a77';
+    const jersey = throwing ? '#31587e' : '#64707c';
+    const shadow = throwing ? '#244464' : '#424d58';
     const offset = ([x, y], dx, dy = 0) => [x + dx, y + dy];
 
     function path(points, color, width = 0) {
@@ -211,28 +211,28 @@
     ctx.clearRect(0, 0, 160, 104);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    path([[10, 95], [151, 95]], '#567a69', 1);
+    path([[10, 95], [151, 95]], '#b7bfc7', 1);
     if (throwing) {
-      path([[21, 95], [38, 91], [61, 91], [85, 95]], '#b78b5e80');
-      path([[45, 91], [58, 91]], '#e2e8d5', 2);
+      path([[21, 95], [38, 91], [61, 91], [85, 95]], '#d7dce0');
+      path([[45, 91], [58, 91]], '#89939e', 2);
     } else {
-      path([[27, 94], [36, 87], [97, 87]], '#567a69', 1);
-      path([[104, 91], [119, 91], [119, 94], [112, 97], [104, 94]], '#e2e8d5');
+      path([[27, 94], [36, 87], [97, 87]], '#b7bfc7', 1);
+      path([[104, 91], [119, 91], [119, 94], [112, 97], [104, 94]], '#8c97a3');
     }
     ctx.save();
     // Hide the cut back to the rubber after both feet have landed.
     if (throwing) ctx.globalAlpha = Math.min(1, Math.abs(progress - pitchingReset) / 0.05);
-    oval([throwing ? hips[0] : 61, 94], 33, 3, '#071b15a0');
+    oval([throwing ? hips[0] : 61, 94], 33, 3, '#303e511a');
 
-    path([offset(hips, -4), backKnee, backFoot], '#8ba99d', 7);
+    path([offset(hips, -4), backKnee, backFoot], '#78838d', 7);
     const backToe = throwing ? offset(backFoot, 5, 2) : [backFoot[0] + 5, ground + 1];
     path([offset(backFoot, -2, 1), backToe], cleats, 4);
     path([offset(hips, 4), leadKnee, leadFoot], pants, 8);
-    path([offset(leadFoot, -2, 1), offset(leadFoot, 6, 1)], '#d6e4d8', 4);
+    path([offset(leadFoot, -2, 1), offset(leadFoot, 6, 1)], '#39434d', 4);
 
     if (!throwing) {
       path([offset(shoulders, -5, -2), backElbow], shadow, 8);
-      path([backElbow, backHand], '#ac8264', 5);
+      path([backElbow, backHand], '#776158', 5);
     }
     path([offset(shoulders, -7, -6), offset(shoulders, 8, -5),
       offset(hips, 8, 2), offset(hips, -8, 2)], jersey);
@@ -248,21 +248,21 @@
     if (throwing) {
       path([offset(shoulders, -5, -2), backElbow], shadow, 6);
       path([backElbow, backHand], skin, 4.5);
-      oval(leadHand, 5.5, 4.5, '#c89766');
-      path([offset(leadHand, -3, -1), offset(leadHand, 3, 1)], '#7c513a', 1);
+      oval(leadHand, 5.5, 4.5, '#76665d');
+      path([offset(leadHand, -3, -1), offset(leadHand, 3, 1)], '#50433e', 1);
       if (progress >= 0.38 && progress <= releaseTime) oval(backHand, 2.5, 2.5, ball);
       if (progress > releaseTime && progress < releaseTime + 0.09) {
         const flight = (progress - releaseTime) / 0.09;
         const x = mix(104, 162, flight);
         const y = mix(20, 44, flight);
-        path([[x - 13, y - 4], [x - 5, y - 1]], '#9be6cc9c', 1.5);
+        path([[x - 13, y - 4], [x - 5, y - 1]], '#869bb0', 1.5);
         oval([x, y], 2.4, 2.4, ball);
       }
     } else {
       // The projected barrel gets shorter momentarily as it points away.
       const alongBat = fraction => offset(leadHand, barrel[0] * fraction, barrel[1] * fraction);
-      path([alongBat(-0.1), alongBat(1)], '#cca374', 3.2);
-      path([alongBat(0.47), alongBat(1)], '#ffd495', 4.8);
+      path([alongBat(-0.1), alongBat(1)], '#77706b', 3.2);
+      path([alongBat(0.47), alongBat(1)], '#625b57', 4.8);
       oval(leadHand, 2.7, 2.7, skin);
       const entryTime = contactTime - 0.15;
       const exitTime = contactTime + 0.095;
@@ -272,7 +272,7 @@
           : (progress - entryTime) / (contactTime - entryTime);
         const x = mix(hit ? 113 : 162, hit ? 162 : 113, flight);
         const y = mix(hit ? 52 : 46, hit ? 20 : 52, flight);
-        if (hit) path([[x - 12, y + 8], [x - 4, y + 3]], '#ffd091a0', 1.5);
+        if (hit) path([[x - 12, y + 8], [x - 4, y + 3]], '#8e99a3', 1.5);
         oval([x, y], 2.4, 2.4, ball);
       }
     }

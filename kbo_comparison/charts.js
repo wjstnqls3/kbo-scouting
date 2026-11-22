@@ -1,7 +1,7 @@
 /* 독립 SVG 렌더러: 실제 값은 title/공유 툴팁/인접 표로 제공. */
 (function(root){
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const colors=['#176143','#ad7d20','#477ea5','#9b4772','#657645','#a35335'];
+const colors=['#234d7c','#a35825','#247169','#864674','#646528','#82454a'];
 const f=v=>Number.isFinite(v)?v.toFixed(3):'미산출';
 const tip=t=>`tabindex="0" data-tip="${esc(t)}" aria-label="${esc(t)}"`;
 function wrap(body,label){return `<svg viewBox="0 0 ${body.includes('class="baseline-label"')?740:600} 330" role="group" aria-label="${esc(label)}" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;}
@@ -75,10 +75,10 @@ function radar(labels,series,{comparison=false,compact=false}={}){
  const cx=240,cy=195,r=118;
  const point=(i,v)=>[cx+Math.sin(i*2*Math.PI/labels.length)*r*v/100,cy-Math.cos(i*2*Math.PI/labels.length)*r*v/100];
  let b='';
- [25,50,75,100].forEach(v=>b+=`<polygon class="radar-grid" points="${labels.map((_,i)=>point(i,v).join(',')).join(' ')}" fill="none" stroke="${v===100?'#526e61':'#a5b9ad'}" stroke-width="${v===100?1.5:1}" vector-effect="non-scaling-stroke"/>`);
+ [25,50,75,100].forEach(v=>b+=`<polygon class="radar-grid" points="${labels.map((_,i)=>point(i,v).join(',')).join(' ')}" fill="none" stroke="${v===100?'#929da9':'#ccd2d8'}" stroke-width="${v===100?1.5:1}" vector-effect="non-scaling-stroke"/>`);
  labels.forEach((l,i)=>{
   const end=point(i,100),p=point(i,132),split=l.indexOf(' '),code=split<0?l:l.slice(0,split),meaning=split<0?'':l.slice(split+1);
-  b+=`<line x1="${cx}" y1="${cy}" x2="${end[0]}" y2="${end[1]}" stroke="#a5b9ad" vector-effect="non-scaling-stroke"/><text x="${p[0]}" y="${p[1]-5}" text-anchor="middle"><tspan x="${p[0]}">${esc(code)}</tspan><tspan class="radar-caption" x="${p[0]}" dy="18">${esc(meaning)}</tspan></text>`;
+  b+=`<line x1="${cx}" y1="${cy}" x2="${end[0]}" y2="${end[1]}" stroke="#ccd2d8" vector-effect="non-scaling-stroke"/><text x="${p[0]}" y="${p[1]-5}" text-anchor="middle"><tspan x="${p[0]}">${esc(code)}</tspan><tspan class="radar-caption" x="${p[0]}" dy="18">${esc(meaning)}</tspan></text>`;
  });
  [25,50,75,100].forEach(v=>b+=`<text class="radar-tick" x="${cx+7}" y="${cy-r*v/100+4}">${v}</text>`);
  series.forEach((s,j)=>{

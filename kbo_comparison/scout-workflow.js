@@ -249,7 +249,7 @@
       ? `<p><strong>${label}</strong> ${esc(fields[i])}</p>` : '').join('');
     const reasons = {missing:'원자료 결측',invalid:'계산 불가',position:'포지션 미확인',sample:'유효 표본 5명 미만'};
     const source = metadata.season_status?.[row.year] || '확정 여부 미확인';
-    return `<article class="player-report panel">
+    return `<article class="player-report">
       <header><h3 class="player-name">${analysisPlayerName(row,row.name)}</h3><p class="muted">${esc(row.team)} · ${row.year}년 · ${pitching ? '' : esc(C.positionText(row.position))+' · '}${volumeText(row)}</p>
       </header>
       <section data-analysis="overview"><p class="priority"><strong>검토 우선순위</strong> <span data-priority-label>${priority}</span></p>

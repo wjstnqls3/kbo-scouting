@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>KBO 스카우팅 보드</title>
-  <link rel="stylesheet" href="scout-workflow.css?v=season-trend">
-  <link rel="stylesheet" href="time-machine.css">
+  <link rel="stylesheet" href="scout-workflow.css?v=analysis-portraits">
+  <link rel="stylesheet" href="time-machine.css?v=smooth-year-reel">
   <script defer src="data.js"></script>
   <script defer src="metadata.js"></script>
   <script defer src="position-data.js"></script>
@@ -15,9 +15,11 @@
   <script defer src="portfolio-model.js"></script>
   <script defer src="pitching-data.js"></script>
   <script defer src="pitching.js?v=separate-profiles"></script>
-  <script defer src="time-machine.js"></script>
-  <script defer src="time-machine-ui.js"></script>
-  <script defer src="scout-workflow.js?v=time-machine"></script>
+  <script defer src="player-photo.js"></script>
+  <script defer src="time-machine.js?v=player-portraits"></script>
+  <script defer src="time-machine-ui.js?v=player-portraits"></script>
+  <script defer src="scout-workflow.js?v=analysis-portraits"></script>
+  <script defer src="start-motion.js?v=pitcher-follow-through"></script>
 </head>
 <body>
   <section id="start-screen" class="start-screen" hidden aria-labelledby="start-title">
@@ -25,23 +27,33 @@
       <h1 id="start-title">KBO 스카우팅 보드</h1>
       <p>시즌 기록으로 후보를 발굴하고 선수의 강점과 검토 사항을 확인하세요.</p>
       <nav class="start-links" aria-label="분석 선택">
-        <a class="start-card" href="?mode=batting">
-          <span class="motion-preview batter-motion" aria-hidden="true">
-            <span class="motion-athlete">
-              <span class="motion-head"></span><span class="motion-torso"></span>
-              <span class="motion-leg motion-leg-back"></span><span class="motion-leg motion-leg-front"></span>
-              <span class="motion-arm"><span class="motion-bat"></span></span>
+        <section class="start-group" aria-labelledby="standard-scouting-title">
+          <h2 id="standard-scouting-title">일반 스카우팅</h2>
+          <a class="start-card" href="?mode=pitching">
+            <canvas class="motion-preview" width="320" height="208" data-motion="pitching" aria-hidden="true"></canvas>
+            <span>투수</span>
+          </a>
+          <a class="start-card" href="?mode=batting">
+            <canvas class="motion-preview" width="320" height="208" data-motion="batting" aria-hidden="true"></canvas>
+            <span>타자</span>
+          </a>
+        </section>
+        <section class="start-group" aria-labelledby="time-machine-scouting-title">
+          <h2 id="time-machine-scouting-title">타임머신 스카우팅</h2>
+          <a class="start-card" href="?mode=time-machine">
+            <span class="motion-preview time-machine-preview" aria-hidden="true">
+              <span class="time-console">
+                <span class="time-display">
+                  <span class="time-window"><span class="time-years" id="time-years"><span>2026</span></span></span>
+                </span>
+                <span class="time-dial" id="time-dial"></span>
+                <span class="time-lights"></span>
+              </span>
             </span>
-            <span class="motion-arc"></span><span class="motion-ball"></span>
-          </span>
-          <span>일반 스카우팅</span>
-          <small>데이터 기반 선수 발굴 및 역량 평가</small>
-        </a>
-        <a class="start-card" href="?mode=time-machine">
-          <span class="motion-preview time-machine-preview" aria-hidden="true"><span></span></span>
-          <span>타임머신 스카우팅</span>
-          <small>과거 기록으로 블라인드 선수 발굴, 미래 성적으로 선택 검증</small>
-        </a>
+            <span>타임머신 시작</span>
+            <small>과거 기록으로 블라인드 선수 발굴, 미래 성적으로 선택 검증</small>
+          </a>
+        </section>
       </nav>
     </div>
   </section>

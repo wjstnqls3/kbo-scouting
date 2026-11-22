@@ -10,7 +10,7 @@ const records = require('../sample_data.json');
 const A = require('../analytics');
 const P = require('../portfolio-model');
 
-function boot({search='?year=2024', hash='', storage=new Map()} = {}) {
+function boot({search='?year=2024', hash='', storage=new Map(), random=Math.random} = {}) {
   const document = new Element('document');
   parse(source('index.html').replace(/<script[\s\S]*?<\/script>/g, ''), document);
   const $ = id => descendants(document).find(element=>element.attrs.id===id);
@@ -20,6 +20,7 @@ function boot({search='?year=2024', hash='', storage=new Map()} = {}) {
   const location = {search, hash};
   const context = vm.createContext({
     document, location, URLSearchParams,
+    Math: Object.create(Math, {random:{value:random}}),
     window: {addEventListener:(name,handler)=>events.set(name,handler), print:()=>prints++},
     localStorage: {getItem:key=>storage.get(key), setItem:(key,value)=>storage.set(key,value)},
     console: {error:error=>errors.push(error)},
@@ -34,6 +35,9 @@ test('후보 기준과 순위가 기존 계산과 일치하고 한 명부터 최
   const app = boot(), {$} = app;
   const expected = P.evaluate(P.poolFor(A.create(records),2024,'',200),P.presets.onbase);
   const candidates = $('candidates').querySelectorAll('[data-candidate]');
+  const portraits = $('candidates').querySelectorAll('img');
+  assert.equal(portraits.length,candidates.length);
+  assert.match(portraits[0].attrs.src,new RegExp(`/2024/${expected[0].row.id}\\.jpg$`));
   assert.deepEqual(candidates.map(input=>input.dataset.candidate),
     expected.slice(0,15).map(({row})=>`${row.id}|${row.year}`));
   assert.match($('candidate-method').textContent,/유효 .*명/);
@@ -65,6 +69,7 @@ test('후보 기준과 순위가 기존 계산과 일치하고 한 명부터 최
   $('player-search').value='ㄱㅈㅊ';
   $('player-search').oninput();
   const results=$('candidates').querySelectorAll('[data-candidate]');
+  assert.equal($('candidates').querySelectorAll('img').length,0);
   const target=results.find(input=>input.attrs['aria-label'].includes('김지찬'));
   assert.ok(target);
   target.click();
@@ -150,10 +155,12 @@ test('선수 리포트가 기존 메모를 읽고 우선순위·메모를 저장
   assert.match(reopened.textContent,/기존 관찰/);
 });
 
-test('시작 화면에서 두 모드를 선택하고 투수 후보·레이더·추세·리포트를 사용한다', () => {
+test('시작 화면에 일반 스카우팅과 타임머신 진입을 묶고 투수 후보·레이더·추세·리포트를 사용한다', () => {
   const {$:start} = boot({search:''});
   assert.equal(start('start-screen').hidden,false);
-  assert.deepEqual(start('start-screen').querySelectorAll('a').map(link=>link.attrs.href),['?mode=batting','?mode=time-machine']);
+  const groupLinks = id => start(id).parent.querySelectorAll('a').map(link=>link.attrs.href);
+  assert.deepEqual(groupLinks('standard-scouting-title'),['?mode=pitching','?mode=batting']);
+  assert.deepEqual(groupLinks('time-machine-scouting-title'),['?mode=time-machine']);
 
   const { $, events, prints } = boot({search:'?mode=pitching&year=2024'});
   assert.equal($('switch-pitching').attrs['aria-current'],'page');
@@ -203,6 +210,11 @@ test('성장 추세는 두 모드에서 지표 하나와 실제 기록값·표�
     assert.ok(labels.some(node=>node.textContent===value),value);
   };
   const { $: hitter } = boot({search:'?mode=batting&id=67341&year=2022'});
+  for (const id of ['selected-players', 'report-content']) {
+    assert.match(hitter(id).querySelector('img').attrs.src,/\/2022\/67341\.jpg$/);
+  }
+  hitter('tab-trend').click();
+  assert.match(hitter('trend-summary').querySelector('img').attrs.src,/\/2022\/67341\.jpg$/);
   const row = records.find(row=>row.Id==='67341'&&row.Season==='2022');
   for (const [key,value,unit,direction] of [
     ['avg',row.H/row.AB,'','높을수록'],['bb',row.BB/row.PA,'%','높을수록'],
@@ -211,6 +223,11 @@ test('성장 추세는 두 모드에서 지표 하나와 실제 기록값·표�
   ]) selectMetric(hitter,key,unit?(value*100).toFixed(2)+unit:value.toFixed(3),direction);
   assert.match(hitter('trend-summary').textContent,new RegExp(row.PA+'타석'));
   const { $: pitcher } = boot({search:'?mode=pitching&id=76715&year=2024'});
+  for (const id of ['selected-players', 'report-content']) {
+    assert.match(pitcher(id).querySelector('img').attrs.src,/\/2024\/76715\.jpg$/);
+  }
+  assert.equal(pitcher('candidates').querySelectorAll('img').length,
+    pitcher('candidates').querySelectorAll('[data-candidate]').length);
   for (const [key,value,unit,direction] of [
     ['k',135/679,'%','높을수록'],['bb',33/679,'%','낮을수록'],
     ['hr',12*9/(158+1/3),'','낮을수록'],['whip',(182+33)/(158+1/3),'','낮을수록'],
@@ -218,11 +235,21 @@ test('성장 추세는 두 모드에서 지표 하나와 실제 기록값·표�
   assert.match(pitcher('trend-summary').textContent,/2024년 158 1\/3이닝/);
   assert.match(pitcher('trend-summary').textContent,/2023년 기록 없음/);
   assert.match(pitcher('trend-summary').textContent,/판단 보류/);
+  pitcher('tab-trend').click();
+  assert.match(pitcher('trend-summary').querySelector('img').attrs.src,/\/2024\/76715\.jpg$/);
+  for (const [$, selectedId] of [[hitter, '67341'], [pitcher, '76715']]) {
+    $('tab-similar').click();
+    const similar = $('report-content').querySelector('[data-analysis="similar"]');
+    assert.equal(similar.hidden,false);
+    const peers = similar.querySelectorAll('img');
+    assert.ok(peers.length > 0);
+    assert.ok(peers.every(photo => photo.dataset.photoId !== selectedId && /\/\d{4}\/\d{5}\.jpg$/.test(photo.attrs.src)));
+  }
 });
 
 for (const type of ['batting', 'pitching']) {
   test(`타임머신 ${type}: 선수 선택 후에도 익명을 유지하고 공개 버튼으로만 실명과 후속 기록을 표시한다`, () => {
-    const {$} = boot({search:'?mode=time-machine'});
+    const {$} = boot({search:'?mode=time-machine', random:()=>0});
     assert.equal($('time-machine').hidden,false);
     assert.ok('hidden' in $('dashboard-main').attrs);
     $('tm-type').value = type;
@@ -233,24 +260,47 @@ for (const type of ['batting', 'pitching']) {
     const panel = $('tm-panel');
     const content = $('tm-content');
     assert.equal(panel.attrs['data-stage'],'2');
+    assert.equal(content.querySelectorAll('img').length,0);
     assert.equal(content.querySelectorAll('[data-pick]').length,3);
     assert.equal($('tm-next').hidden,true);
     $('tm-next').click();
     assert.equal(panel.attrs['data-stage'],'2');
     assert.doesNotMatch(content.textContent,/202[1-3]|모델 추천/);
-    content.querySelector('[data-pick="B"]').click();
+    const selected = type === 'pitching' ? 'C' : 'B';
+    content.querySelector(`[data-pick="${selected}"]`).click();
     assert.equal(panel.attrs['data-stage'],'3');
-    assert.equal(content.querySelector('strong').textContent,'B');
+    assert.equal(content.querySelectorAll('img').length,0);
+    assert.equal(content.querySelector('strong').textContent,selected);
     assert.match(content.textContent,/내 선택.*모델 추천.*상대 강점.*상대 약점/s);
     assert.doesNotMatch(content.textContent,/202[1-3]년/);
     $('tm-next').click();
     assert.equal(panel.attrs['data-stage'],'4');
     assert.equal(content.querySelectorAll('svg').length,1);
+    assert.equal(content.querySelector('span[data-picked]').textContent,`내 선택 ${selected}`);
+    assert.equal(content.querySelector('span[data-recommended]').textContent,'모델 추천 C');
     assert.match(content.textContent,/2021년.*2022년.*2023년/s);
-    const names = content.querySelectorAll('th').slice(1,4).map(el=>el.textContent.match(/^[ABC] · (.+?)$/)?.[1]);
+    const playerHeaders = content.querySelectorAll('th[scope="col"]').slice(1);
+    assert.ok(playerHeaders.every(header=>/\/2020\/\d{5}\.jpg$/.test(header.querySelector('img')?.attrs.src)));
+    const names = playerHeaders.map(el=>el.textContent.match(/^[ABC] · (.+?)$/)?.[1]);
     assert.ok(names.every(Boolean));
+    const table = content.querySelector('table');
+    const pickedHeader = table.querySelector('th[data-picked]');
+    const recommendedHeader = table.querySelector('th[data-recommended]');
+    assert.ok(pickedHeader.textContent.startsWith(selected + ' ·'));
+    assert.ok(recommendedHeader.textContent.startsWith('C ·'));
+    assert.match(pickedHeader.textContent,/내 선택/);
+    assert.match(recommendedHeader.textContent,/모델 추천/);
+    assert.equal(pickedHeader === recommendedHeader,selected === 'C');
+    for (const row of table.querySelector('tbody').querySelectorAll('tr')) {
+      const cells = row.querySelectorAll('td');
+      assert.equal(row.querySelector('td[data-picked]'),cells[playerHeaders.indexOf(pickedHeader)]);
+      assert.equal(row.querySelector('td[data-recommended]'),cells[playerHeaders.indexOf(recommendedHeader)]);
+    }
     if (type === 'pitching') assert.match(content.textContent,/ERA.*K-BB%/s);
     $('tm-next').click();
+    assert.equal(content.querySelectorAll('img').length,4);
+    assert.match(content.querySelector('li[data-picked]').textContent,/내가 선택한 선수/);
+    assert.match(content.querySelector('li[data-recommended]').textContent,/당시 모델 추천/);
     assert.match(content.textContent,/스카우팅에서 확인할 요소.*출전 기회와 표본 규모/s);
     $('tm-reset').click();
     assert.equal(content.textContent,'');

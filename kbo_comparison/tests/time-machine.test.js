@@ -38,7 +38,7 @@ for (const [records, isPitching] of [[batting, false], [pitching, true]]) {
     const engine = isPitching ? P.create(past) : A.create(past);
     const pool = isPitching ? P.poolFor(engine, rules.year, rules.minimum) : B.poolFor(engine, rules.year, rules.position, rules.minimum);
     const entries = ranking.evaluate(pool, ranking.presets.balanced);
-    assert.ok(round.players.every(player => !Object.hasOwn(player, 'name') && !Object.hasOwn(player, 'team')));
+    assert.ok(round.players.every(player => ['id','name','team'].every(key=>!Object.hasOwn(player, key))));
     const {recommended} = round.judge('C');
     const result = round.reveal();
     assert.deepEqual(Array.from(result.years), [2021, 2022, 2023]);
@@ -46,6 +46,7 @@ for (const [records, isPitching] of [[batting, false], [pitching, true]]) {
       const entry = entries.find(({row, value}) => row.name === player.name && row.team === player.team && value === player.score);
       assert.ok(entry);
       const id = entry.row.id;
+      assert.equal(player.id, id);
       for (const season of player.future) {
         const raw = records.find(row => row.Id === id && +row.Season === season.year);
         if (!raw) {

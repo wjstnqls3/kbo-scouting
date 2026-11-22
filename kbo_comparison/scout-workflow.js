@@ -110,9 +110,10 @@
       const activeAxes = ranking.active(applied.weights).sort((a,b) => (entry.scores?.[b.key].value ?? 0) - (entry.scores?.[a.key].value ?? 0));
       const evidence = !entry.rank ? (row.stats.outs === null && pitching ? '이닝 미확인' : volume(row) < applied.minimum ? '최소 '+unit+' 미달' : '유효 표본 또는 기록 부족') : activeAxes.slice(0, 2).map(axis => `${axis.name} ${fmt(entry.scores[axis.key].value)}백분위`).join(' · ');
       const checkpoints = scoutingCheckpoints(row);
+      const portrait = query ? '' : KBOPlayerPhoto.markup(row.id, row.year);
       return `<article class="candidate">
         <div class="rank">${entry.rank ? entry.rank+'<small>위</small>' : '—'}</div>
-        <div><h3>${esc(row.name)}</h3><p class="muted player-meta">${esc(row.team)} · ${pitching ? '' : esc(C.positionText(row.position))+' · '}${volumeText(row)}</p></div>
+        <div><h3 class="player-name">${portrait}<span>${esc(row.name)}</span></h3><p class="muted player-meta">${esc(row.team)} · ${pitching ? '' : esc(C.positionText(row.position))+' · '}${volumeText(row)}</p></div>
         <div class="candidate-notes"><p><strong>${entry.rank ? '추천 근거' : '순위 보류'}</strong> ${esc(evidence)}</p>${checkpoints.length ? `<p><strong>스카우팅 체크포인트</strong> ${esc(checkpoints.join(' / '))}</p>` : ''}</div>
         <div class="candidate-actions"><strong class="score">${entry.rank ? fmt(entry.value)+'<small>점</small>' : '—'}</strong>
         <label class="select-player"><input type="checkbox" data-candidate="${esc(key)}" ${selected.has(key)?'checked':''} aria-label="${esc(playerLabel(row))} 검토 대상 선택">선택</label></div>
@@ -153,7 +154,7 @@
     $('selection-message').hidden = true;
     $('print-report').disabled = selected.size === 0;
     $('selected-players').innerHTML = [...selected].map(([key,{row}]) =>
-      `<button class="tag" type="button" data-remove="${esc(key)}" aria-label="${esc(playerLabel(row))} 선택 해제">${esc(row.name)} ${row.year} ×</button>`).join('');
+      `<button class="tag player-name" type="button" data-remove="${esc(key)}" aria-label="${esc(playerLabel(row))} 선택 해제">${KBOPlayerPhoto.markup(row.id, row.year)}${esc(row.name)} ${row.year} ×</button>`).join('');
     renderReport();
   }
 
@@ -194,15 +195,19 @@
     return `${before.year}→${after.year}년 ${direction} · ${previous} → ${latest}`;
   }
 
+  function analysisPlayerName(row, label) {
+    return `${KBOPlayerPhoto.markup(row.id, row.year)}<span>${esc(label)}</span>`;
+  }
+
   function renderTrend() {
     const axis = axes.find(item=>item.key===$('trend-metric').value);
     const label = axis.code+' '+trendNames[axis.key];
     const format = value => raw(value,axis.key);
-    const series = [...selected.values()].map(({row})=>({name:playerLabel(row),points:trendHistory(row,axis)}));
+    const series = [...selected.values()].map(({row})=>({row,name:playerLabel(row),points:trendHistory(row,axis)}));
     $('trend-direction').textContent = `${label} · ${(axis.direction??1)>0?'높을수록':'낮을수록'} 유리`;
     $('trend-plot').innerHTML = V.seasonTrend(series,label,format);
-    $('trend-summary').innerHTML = series.map(({name,points})=>`<section>
-      <h4>${esc(name)}</h4>
+    $('trend-summary').innerHTML = series.map(({row,name,points})=>`<section>
+      <h4 class="player-name">${analysisPlayerName(row,name)}</h4>
       <p>${esc(trendChange(points,axis,format))}</p>
       <p class="muted">${points.map(point=>{
         const parts = [point.sample,Number.isFinite(point.value) ? (point.lowSample?'소표본':'') : point.missing];
@@ -216,12 +221,12 @@
       const matches = engine.similar(row);
       return matches.length ? `<ol class="similar-list">${matches.map(({row:peer})=>{
         const diffs = axes.slice(0,3).map(({key,code})=>`${code} ${signed((peer.stats[key]-row.stats[key])*(key==='hr'?1:100),2)}${key==='hr'?'':'%p'}`);
-        return `<li><strong>${esc(playerLabel(peer))}</strong><span>${diffs.join(' · ')}</span></li>`;
+        return `<li><strong class="player-name">${analysisPlayerName(peer,playerLabel(peer))}</strong><span>${diffs.join(' · ')}</span></li>`;
       }).join('')}</ol>` : '<p>이닝·필수 기록 또는 비교 표본이 부족합니다.</p>';
     }
     const matches = engine.similar(row, A.comparisonMinPA).slice(0, 3);
     return matches.length ? `<ol class="similar-list">${matches.map(({row:peer, differences}) =>
-      `<li><strong>${esc(playerLabel(peer))}</strong><span>OPS 지수 ${signed(differences.opsIndex)}점 · ISO ${signed(differences.iso,3)} · 삼진율 ${signed(differences.k,2)}%p</span></li>`
+      `<li><strong class="player-name">${analysisPlayerName(peer,playerLabel(peer))}</strong><span>OPS 지수 ${signed(differences.opsIndex)}점 · ISO ${signed(differences.iso,3)} · 삼진율 ${signed(differences.k,2)}%p</span></li>`
     ).join('')}</ol>` : '<p>타석·필수 기록 또는 과거 비교 표본이 부족합니다.</p>';
   }
 
@@ -245,7 +250,7 @@
     const reasons = {missing:'원자료 결측',invalid:'계산 불가',position:'포지션 미확인',sample:'유효 표본 5명 미만'};
     const source = metadata.season_status?.[row.year] || '확정 여부 미확인';
     return `<article class="player-report panel">
-      <header><h3>${esc(row.name)}</h3><p class="muted">${esc(row.team)} · ${row.year}년 · ${pitching ? '' : esc(C.positionText(row.position))+' · '}${volumeText(row)}</p>
+      <header><h3 class="player-name">${analysisPlayerName(row,row.name)}</h3><p class="muted">${esc(row.team)} · ${row.year}년 · ${pitching ? '' : esc(C.positionText(row.position))+' · '}${volumeText(row)}</p>
       </header>
       <section data-analysis="overview"><p class="priority"><strong>검토 우선순위</strong> <span data-priority-label>${priority}</span></p>
         <p><strong>강점</strong> ${high || (rated.length ? '75백분위 이상인 지표 없음' : '비교 점수 없음')}</p>

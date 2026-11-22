@@ -100,7 +100,7 @@
           players:players.map((player, i) => {
             const identity = identities[i];
             return {
-              ...player, name:identity.name, team:identity.team,
+              ...player, id:identity.id, name:identity.name, team:identity.team,
               future:years.map(later => futureSeason(records, identity, later, pitching, minimum)),
             };
           }),

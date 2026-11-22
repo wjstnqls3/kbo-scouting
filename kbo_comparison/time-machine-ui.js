@@ -115,6 +115,10 @@
       ${pitching ? `<span>K-BB% ${percent(season.stats.kbb)}</span>` : ''}`;
   }
 
+  function revealedPlayerName(player) {
+    return `<span class="player-name">${KBOPlayerPhoto.markup(player.id, rules.year)}<span>${player.label} · ${esc(player.name)}</span></span>`;
+  }
+
   function showFuture() {
     outcome ??= round.reveal();
     if (!outcome) return;
@@ -130,10 +134,20 @@
         })),
       ],
     }));
-    const nameHeaders = outcome.players.map(player => `<th scope="col">${player.label} · ${esc(player.name)}<br><small>${esc(player.team)} · 기준 시즌</small></th>`).join('');
-    const baseline = outcome.players.map(player => `<td>${volume(player.stats)} · ${code} ${number(player.stats[key], digits)}${pitching ? `<br>K-BB% ${percent(player.stats.k - player.stats.bb)}` : ''}</td>`).join('');
-    const future = outcome.years.map((year, i) => `<tr><th scope="row">${year}년</th>${outcome.players.map(player => `<td>${seasonCell(player.future[i], player.stats[key])}</td>`).join('')}</tr>`).join('');
-    content.innerHTML = `<p class="tm-message">내 선택 <strong>${outcome.selected}</strong> · 모델 추천 <strong>${outcome.recommended}</strong> · ${outcome.selected === outcome.recommended ? '일치' : '불일치'}</p>
+    const columns = outcome.players.map(player => {
+      const picked = player.label === outcome.selected;
+      const recommended = player.label === outcome.recommended;
+      const attributes = (picked ? ' data-picked' : '') + (recommended ? ' data-recommended' : '');
+      const role = [picked && '내 선택', recommended && '모델 추천'].filter(Boolean).join(' · ');
+      return {player, attributes, role};
+    });
+    const nameHeaders = columns.map(({player, attributes, role}) => `<th scope="col"${attributes}>${revealedPlayerName(player)}<br><small>${esc(player.team)} · 기준 시즌</small>${role ? `<span class="tm-result-role">${role}</span>` : ''}</th>`).join('');
+    const baseline = columns.map(({player, attributes}) => `<td${attributes}>${volume(player.stats)} · ${code} ${number(player.stats[key], digits)}${pitching ? `<br>K-BB% ${percent(player.stats.k - player.stats.bb)}` : ''}</td>`).join('');
+    const future = outcome.years.map((year, i) => `<tr><th scope="row">${year}년</th>${columns.map(({player, attributes}) => `<td${attributes}>${seasonCell(player.future[i], player.stats[key])}</td>`).join('')}</tr>`).join('');
+    content.innerHTML = `<div class="tm-result-key">
+        <span data-picked>내 선택 <strong>${outcome.selected}</strong></span>
+        <span data-recommended>모델 추천 <strong>${outcome.recommended}</strong></span>
+      </div>
       ${seasonTrend(series, code, value => number(value, digits))}
       <div class="tm-table" tabindex="0" role="region" aria-label="선수별 시즌 기록">
         <table aria-label="기준 시즌과 이후 시즌 기록"><thead><tr><th scope="col">시즌</th>${nameHeaders}</tr></thead>
@@ -150,15 +164,14 @@
     const comparison = outcome.players.filter(player => player !== picked).map(player => {
       const {better, worse, equal} = model.compareFuture(picked, player, pitching);
       const record = better + worse + equal ? `우세 ${better} · 열세 ${worse} · 동률 ${equal}시즌` : '같은 시즌의 기준 충족 기록 부족';
-      return `<li>${player.label} · ${esc(player.name)} 대비 ${record}</li>`;
+      return `<li>${revealedPlayerName(player)} 대비 ${record}</li>`;
     }).join('');
-    const agreement = picked === recommended ? '모델과 일치' : '모델과 불일치';
     const review = pitching
       ? '탈삼진과 볼넷의 균형, 등판 역할, 이닝을 함께 검토하고 구종·구속·부상 이력을 추가로 확인하세요.'
       : '출루와 장타의 균형, 타석을 함께 검토하고 수비·주루 기여, 부상 이력과 역할 변화를 추가로 확인하세요.';
     content.innerHTML = `<ol class="tm-report">
-      <li><strong>내가 선택한 선수</strong> · ${picked.label} ${esc(picked.name)} (${esc(picked.team)})</li>
-      <li><strong>당시 모델 추천</strong> · ${recommended.label} ${esc(recommended.name)} (${esc(recommended.team)}) · ${agreement}</li>
+      <li data-picked><strong>내가 선택한 선수</strong> · ${revealedPlayerName(picked)} (${esc(picked.team)})</li>
+      <li data-recommended><strong>당시 모델 추천</strong> · ${revealedPlayerName(recommended)} (${esc(recommended.team)})</li>
       <li><strong>이후 실제 성적 비교</strong> · ${pitching ? 'ERA가 낮을수록' : 'OPS가 높을수록'} 우세. 두 선수 모두 ${rules.minimum}${pitching ? '이닝' : '타석'} 이상인 유효 시즌을 비교했습니다.<ul>${comparison}</ul></li>
       <li><strong>내 판단의 강점과 보완점</strong> · 선택한 선수의 당시 가장 높은 상대 지표는 ${evidence(picked.strongest)}였습니다. ${evidence(picked.weakest)}는 당시 함께 살펴볼 지표였습니다.${picked === recommended ? '' : ` 추천 선수는 ${evidence(recommended.strongest)}에서 자신의 지표 중 가장 높은 백분위를 보였습니다.`}</li>
       <li><strong>다음 스카우팅에서 확인할 요소</strong> · ${review}</li>

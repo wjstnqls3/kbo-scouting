@@ -22,6 +22,9 @@ FILES = (
     'scout-workflow.js',
     'scouting-dashboard.html',
     'scouting-portfolio.html',
+    'time-machine.css',
+    'time-machine.js',
+    'time-machine-ui.js',
 )
 
 for name in FILES:

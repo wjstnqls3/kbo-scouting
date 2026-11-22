@@ -15,6 +15,8 @@ class Element {
   get selectedOptions(){return this.options.filter(x=>x.value===this.value);}
   reportValidity(){return true;}
   setAttribute(key,value){this.attrs[key]=String(value);}
+  removeAttribute(key){delete this.attrs[key];}
+  focus(){}
   addEventListener(){}
   get options(){return this.querySelectorAll('option');}
   get textContent(){return this._text+this.children.map(c=>c.textContent).join('');}

@@ -4,6 +4,7 @@
   const {esc} = V;
   const params = new URLSearchParams(location.search);
   const requestedMode = params.get('mode');
+  if (requestedMode === 'time-machine') return;
   const legacyLink = ['year','id','selection'].some(key=>params.has(key)) || location.hash === '#final-comparison';
   if (!requestedMode && !legacyLink) {
     $('start-screen').hidden = false;

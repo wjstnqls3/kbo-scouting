@@ -153,7 +153,7 @@ test('선수 리포트가 기존 메모를 읽고 우선순위·메모를 저장
 test('시작 화면에서 두 모드를 선택하고 투수 후보·레이더·추세·리포트를 사용한다', () => {
   const {$:start} = boot({search:''});
   assert.equal(start('start-screen').hidden,false);
-  assert.deepEqual(start('start-screen').querySelectorAll('a').map(link=>link.attrs.href),['?mode=batting','?mode=pitching']);
+  assert.deepEqual(start('start-screen').querySelectorAll('a').map(link=>link.attrs.href),['?mode=batting','?mode=time-machine']);
 
   const { $, events, prints } = boot({search:'?mode=pitching&year=2024'});
   assert.equal($('switch-pitching').attrs['aria-current'],'page');
@@ -219,3 +219,41 @@ test('성장 추세는 두 모드에서 지표 하나와 실제 기록값·표�
   assert.match(pitcher('trend-summary').textContent,/2023년 기록 없음/);
   assert.match(pitcher('trend-summary').textContent,/판단 보류/);
 });
+
+for (const type of ['batting', 'pitching']) {
+  test(`타임머신 ${type}: 선수 선택 후에도 익명을 유지하고 공개 버튼으로만 실명과 후속 기록을 표시한다`, () => {
+    const {$} = boot({search:'?mode=time-machine'});
+    assert.equal($('time-machine').hidden,false);
+    assert.ok('hidden' in $('dashboard-main').attrs);
+    $('tm-type').value = type;
+    $('tm-type').change();
+    assert.equal($('tm-year').value,'2020');
+    assert.equal($('tm-year').options[0].value,'2025');
+    $('tm-form').onsubmit({preventDefault(){}});
+    const panel = $('tm-panel');
+    const content = $('tm-content');
+    assert.equal(panel.attrs['data-stage'],'2');
+    assert.equal(content.querySelectorAll('[data-pick]').length,3);
+    assert.equal($('tm-next').hidden,true);
+    $('tm-next').click();
+    assert.equal(panel.attrs['data-stage'],'2');
+    assert.doesNotMatch(content.textContent,/202[1-3]|모델 추천/);
+    content.querySelector('[data-pick="B"]').click();
+    assert.equal(panel.attrs['data-stage'],'3');
+    assert.equal(content.querySelector('strong').textContent,'B');
+    assert.match(content.textContent,/내 선택.*모델 추천.*상대 강점.*상대 약점/s);
+    assert.doesNotMatch(content.textContent,/202[1-3]년/);
+    $('tm-next').click();
+    assert.equal(panel.attrs['data-stage'],'4');
+    assert.equal(content.querySelectorAll('svg').length,1);
+    assert.match(content.textContent,/2021년.*2022년.*2023년/s);
+    const names = content.querySelectorAll('th').slice(1,4).map(el=>el.textContent.match(/^[ABC] · (.+?)$/)?.[1]);
+    assert.ok(names.every(Boolean));
+    if (type === 'pitching') assert.match(content.textContent,/ERA.*K-BB%/s);
+    $('tm-next').click();
+    assert.match(content.textContent,/스카우팅에서 확인할 요소.*출전 기회와 표본 규모/s);
+    $('tm-reset').click();
+    assert.equal(content.textContent,'');
+    assert.equal(panel.attrs['data-stage'],'1');
+  });
+}

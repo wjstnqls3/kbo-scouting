@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>KBO 스카우팅 보드</title>
   <link rel="stylesheet" href="scout-workflow.css?v=season-trend">
+  <link rel="stylesheet" href="time-machine.css">
   <script defer src="data.js"></script>
   <script defer src="metadata.js"></script>
   <script defer src="position-data.js"></script>
@@ -14,7 +15,9 @@
   <script defer src="portfolio-model.js"></script>
   <script defer src="pitching-data.js"></script>
   <script defer src="pitching.js?v=separate-profiles"></script>
-  <script defer src="scout-workflow.js?v=empty-initial-selection"></script>
+  <script defer src="time-machine.js"></script>
+  <script defer src="time-machine-ui.js"></script>
+  <script defer src="scout-workflow.js?v=time-machine"></script>
 </head>
 <body>
   <section id="start-screen" class="start-screen" hidden aria-labelledby="start-title">
@@ -31,18 +34,13 @@
             </span>
             <span class="motion-arc"></span><span class="motion-ball"></span>
           </span>
-          <span>타자 분석</span>
+          <span>일반 스카우팅</span>
+          <small>데이터 기반 선수 발굴 및 역량 평가</small>
         </a>
-        <a class="start-card" href="?mode=pitching">
-          <span class="motion-preview pitcher-motion" aria-hidden="true">
-            <span class="motion-athlete">
-              <span class="motion-head"></span><span class="motion-torso"></span>
-              <span class="motion-leg motion-leg-back"></span><span class="motion-leg motion-leg-front"></span>
-              <span class="motion-arm"></span><span class="motion-glove"></span>
-            </span>
-            <span class="motion-ball"></span>
-          </span>
-          <span>투수 분석</span>
+        <a class="start-card" href="?mode=time-machine">
+          <span class="motion-preview time-machine-preview" aria-hidden="true"><span></span></span>
+          <span>타임머신 스카우팅</span>
+          <small>과거 기록으로 블라인드 선수 발굴, 미래 성적으로 선택 검증</small>
         </a>
       </nav>
     </div>
@@ -52,6 +50,8 @@
       <div><h1 id="dashboard-title">KBO 스카우팅 보드</h1><p>후보 발굴과 선수 평가</p></div>
       <div class="header-actions screen-only">
         <nav class="mode-switch" aria-label="분석 전환">
+          <a href="?">시작 화면</a>
+          <a href="?mode=time-machine">타임머신</a>
           <a id="switch-batting" href="?mode=batting">타자 분석</a>
           <a id="switch-pitching" href="?mode=pitching">투수 분석</a>
         </nav>
@@ -135,5 +135,46 @@
       </section>
     </div>
   </main>
+  <div id="time-machine" hidden>
+    <header class="masthead">
+      <div class="shell header-inner">
+        <h1>타임머신 스카우팅</h1>
+        <nav class="mode-switch" aria-label="모드 전환">
+          <a href="?">시작 화면</a>
+          <a href="?mode=batting">일반 스카우팅</a>
+        </nav>
+      </div>
+    </header>
+    <main class="shell tm-main">
+      <ol class="tm-progress" id="tm-progress" aria-label="진행 단계">
+        <li aria-current="step">조건 설정</li>
+        <li>블라인드 비교</li>
+        <li>판단 확인</li>
+        <li>미래 성적</li>
+        <li>결과 요약</li>
+      </ol>
+      <section class="panel tm-panel" id="tm-panel" aria-labelledby="tm-heading">
+        <h2 id="tm-heading" tabindex="-1">평가 기준 선택</h2>
+        <p id="tm-context" class="muted" hidden></p>
+        <form id="tm-form">
+          <div class="tm-filters">
+            <label>평가 기준 시즌<select id="tm-year" required></select></label>
+            <label>선수 유형<select id="tm-type"><option value="batting">타자</option><option value="pitching">투수</option></select></label>
+            <label>포지션 / 등판 규모<select id="tm-position"></select></label>
+            <label><span id="tm-min-label">최소 타석</span><input id="tm-min" type="number" min="1" step="1" required></label>
+            <button id="tm-submit" type="submit">블라인드 비교 시작</button>
+          </div>
+          <p id="tm-position-help" class="muted" hidden>투수는 경기당 3이닝을 기준으로 등판 규모를 구분합니다. 선발·구원 여부는 CSV에서 확인할 수 없습니다.</p>
+          <p id="tm-rule" class="tm-rule"></p>
+          <p id="tm-error" role="status" hidden></p>
+        </form>
+        <div id="tm-content"></div>
+        <div id="tm-actions" class="tm-actions" hidden>
+          <button type="button" id="tm-next"></button>
+          <button type="button" id="tm-reset" class="secondary">조건 다시 선택</button>
+        </div>
+      </section>
+    </main>
+  </div>
 </body>
 </html>

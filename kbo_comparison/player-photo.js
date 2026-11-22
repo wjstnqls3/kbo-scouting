@@ -1,6 +1,5 @@
 const KBOPlayerPhoto = (() => {
-  const photoRoot = 'https://6ptotvmi5753.edge.naverncp.com/KBO_IMAGE/person/middle';
-  const photoUrl = (id, year) => `${photoRoot}/${year}/${id}.jpg`;
+  const photoRoot = 'https://6ptotvmi5753.edge.naverncp.com/KBO_IMAGE/person';
   let seasons;
 
   function fallbackSeason(id, year) {
@@ -24,7 +23,12 @@ const KBOPlayerPhoto = (() => {
     let image = '';
     if (/^\d{5}$/.test(id) && Number.isInteger(year) && year >= 1982 && year < 2100) {
       const fallback = fallbackSeason(id, year);
-      image = `<img src="${photoUrl(id, year)}" alt="" decoding="async" data-photo-id="${id}"${Number.isFinite(fallback) ? ` data-photo-fallback="${fallback}"` : ''}>`;
+      const years = Number.isFinite(fallback) ? [year, fallback] : [year];
+      const [source, ...alternatives] = years.flatMap(photoYear => [
+        `middle/${photoYear}/${id}.jpg`,
+        `kbo/${photoYear}/${id}.png`,
+      ]);
+      image = `<img src="${photoRoot}/${source}" alt="" decoding="async" referrerpolicy="no-referrer" data-photo-id="${id}" data-photo-alternatives="${alternatives.join(' ')}">`;
     }
     return `<span class="player-portrait" aria-hidden="true">${image}</span>`;
   }
@@ -35,10 +39,14 @@ const KBOPlayerPhoto = (() => {
   }, true);
   document.addEventListener('error', event => {
     const image = event.target;
-    const {photoId, photoFallback} = image.dataset || {};
-    if (!photoId || !photoFallback) return;
-    image.removeAttribute('data-photo-fallback');
-    image.src = photoUrl(photoId, photoFallback);
+    if (!image.dataset?.photoId) return;
+    const [next, ...remaining] = image.dataset.photoAlternatives.split(' ');
+    if (!next) {
+      image.hidden = true;
+      return;
+    }
+    image.dataset.photoAlternatives = remaining.join(' ');
+    image.src = `${photoRoot}/${next}`;
   }, true);
 
   return {markup};

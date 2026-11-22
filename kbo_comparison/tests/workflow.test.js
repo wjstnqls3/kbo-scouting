@@ -247,6 +247,26 @@ test('성장 추세는 두 모드에서 지표 하나와 실제 기록값·표�
   }
 });
 
+test('선수 사진이 실패하면 다른 형식과 시즌을 차례대로 시도하고 아이콘을 남긴다', () => {
+  const events = new Map();
+  const document = {addEventListener:(name, handler)=>events.set(name, handler)};
+  const context = {document, battingData:[{Id:'67341',Season:'2023'}], pitchingData:[]};
+  const markup = vm.runInNewContext(source('player-photo.js') + '\nKBOPlayerPhoto.markup("67341", 2026)', context);
+  const portrait = new Element('div');
+  parse(markup, portrait);
+  const image = portrait.querySelector('img');
+  assert.match(image.attrs.src,/\/middle\/2026\/67341\.jpg$/);
+  assert.equal(image.attrs.referrerpolicy,'no-referrer');
+  for (const suffix of [/\/kbo\/2026\/67341\.png$/, /\/middle\/2023\/67341\.jpg$/, /\/kbo\/2023\/67341\.png$/]) {
+    events.get('error')({target:image});
+    assert.match(image.src,suffix);
+    assert.equal(image.hidden,undefined);
+  }
+  events.get('error')({target:image});
+  assert.equal(image.hidden,true);
+  assert.equal(image.parent.attrs.class,'player-portrait');
+});
+
 for (const type of ['batting', 'pitching']) {
   test(`타임머신 ${type}: 선수 선택 후에도 익명을 유지하고 공개 버튼으로만 실명과 후속 기록을 표시한다`, () => {
     const {$} = boot({search:'?mode=time-machine', random:()=>0});

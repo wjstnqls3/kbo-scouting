@@ -4,9 +4,8 @@
   const {esc} = V;
   const params = new URLSearchParams(location.search);
   const requestedMode = params.get('mode');
-  if (requestedMode === 'time-machine') return;
   const legacyLink = ['year','id','selection'].some(key=>params.has(key)) || location.hash === '#final-comparison';
-  if (!requestedMode && !legacyLink) {
+  if (requestedMode === 'time-machine' || (!requestedMode && !legacyLink)) {
     $('start-screen').hidden = false;
     return;
   }
@@ -17,6 +16,8 @@
   const ranking = pitching ? pitchingModel : P;
   const unit = pitching ? '이닝' : '타석';
   const defaultMinimum = pitching ? pitchingModel.minimum : A.comparisonMinPA;
+  const metricReasons = {missing:'원자료 결측',invalid:'계산 불가',position:'포지션 미확인',sample:'유효 표본 5명 미만',
+    zeroInnings:'0이닝 · 계산 불가',zeroBatters:'상대 타자 0명 · 계산 불가'};
   const volume = row => pitching ? row.stats.outs/3 : row.stats.pa;
   const volumeText = row => pitching
     ? row.stats.outs === null ? '이닝 미확인' : pitchingModel.formatIP(row.stats.outs)+'이닝'
@@ -39,7 +40,11 @@
   const raw = (value, key) => Number.isFinite(value) && (pitching ? ['bb','k'] : ['bb','k','sb']).includes(key) ? fmt(value * 100, 2) + '%' : fmt(value, 3);
   const option = (value, label) => `<option value="${esc(value)}">${esc(label)}</option>`;
   const table = (headers, rows) => `<div class="table-wrap"><table><thead><tr>${headers.map(h=>`<th scope="col">${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(value=>`<td>${esc(value)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
-  const playerLabel = row => `${row.name} · ${row.team} · ${row.year}`;
+  function displayName(row) {
+    const peers = engine.byYear.get(row.year);
+    return peers.some(peer=>peer.name===row.name && peer.id!==row.id) ? row.name+' (ID '+row.id+')' : row.name;
+  }
+  const playerLabel = row => `${displayName(row)} · ${row.team} · ${row.year}`;
   const memoKey = key => (pitching ? 'kbo.scouting.pitching.memo.v1.' : 'kbo.scouting.memo.v1.') + key;
 
   const selected = new Map();
@@ -93,6 +98,11 @@
     return strongest.score>=85 ? [describe(strongest)] : [];
   }
 
+  function unrankedReason(row,scope) {
+    if (pitching && row.stats.outs===null) return '이닝 미확인';
+    return volume(row)<scope.minimum ? '최소 '+unit+' 미달' : '유효 표본 또는 기록 부족';
+  }
+
   function renderCandidates() {
     const query = $('player-search').value.trim();
     candidates = ranked;
@@ -108,12 +118,12 @@
       const {row} = entry;
       const key = keyOf(row);
       const activeAxes = ranking.active(applied.weights).sort((a,b) => (entry.scores?.[b.key].value ?? 0) - (entry.scores?.[a.key].value ?? 0));
-      const evidence = !entry.rank ? (row.stats.outs === null && pitching ? '이닝 미확인' : volume(row) < applied.minimum ? '최소 '+unit+' 미달' : '유효 표본 또는 기록 부족') : activeAxes.slice(0, 2).map(axis => `${axis.name} ${fmt(entry.scores[axis.key].value)}백분위`).join(' · ');
+      const evidence = !entry.rank ? unrankedReason(row,applied) : activeAxes.slice(0, 2).map(axis => `${axis.name} ${fmt(entry.scores[axis.key].value)}백분위`).join(' · ');
       const checkpoints = scoutingCheckpoints(row);
       const portrait = query ? '' : KBOPlayerPhoto.markup(row.id, row.year);
       return `<article class="candidate">
         <div class="rank">${entry.rank ? entry.rank+'<small>위</small>' : '—'}</div>
-        <div><h3 class="player-name">${portrait}<span>${esc(row.name)}</span></h3><p class="muted player-meta">${esc(row.team)} · ${pitching ? '' : esc(C.positionText(row.position))+' · '}${volumeText(row)}</p></div>
+        <div><h3 class="player-name">${portrait}<span>${esc(displayName(row))}</span></h3><p class="muted player-meta">${esc(row.team)} · ${pitching ? '' : esc(C.positionText(row.position))+' · '}${volumeText(row)}</p></div>
         <div class="candidate-notes"><p><strong>${entry.rank ? '추천 근거' : '순위 보류'}</strong> ${esc(evidence)}</p>${checkpoints.length ? `<p><strong>스카우팅 체크포인트</strong> ${esc(checkpoints.join(' / '))}</p>` : ''}</div>
         <div class="candidate-actions"><strong class="score">${entry.rank ? fmt(entry.value)+'<small>점</small>' : '—'}</strong>
         <label class="select-player"><input type="checkbox" data-candidate="${esc(key)}" ${selected.has(key)?'checked':''} aria-label="${esc(playerLabel(row))} 검토 대상 선택">선택</label></div>
@@ -152,9 +162,11 @@
   function updateSelection() {
     $('selection-count').textContent = `선택 ${selected.size}/${maxSelected}명`;
     $('selection-message').hidden = true;
+    $('selection-actions').hidden = selected.size === 0;
     $('print-report').disabled = selected.size === 0;
+    $('open-audit').disabled = selected.size === 0;
     $('selected-players').innerHTML = [...selected].map(([key,{row}]) =>
-      `<button class="tag player-name" type="button" data-remove="${esc(key)}" aria-label="${esc(playerLabel(row))} 선택 해제">${KBOPlayerPhoto.markup(row.id, row.year)}${esc(row.name)} ${row.year} ×</button>`).join('');
+      `<button class="tag player-name" type="button" data-remove="${esc(key)}" aria-label="${esc(playerLabel(row))} 선택 해제">${KBOPlayerPhoto.markup(row.id, row.year)}${esc(displayName(row))} ${row.year} ×</button>`).join('');
     renderReport();
   }
 
@@ -180,8 +192,9 @@
     if (!history) return [];
     return history.map(({year,row:season,hasRaw,rawPA})=>{
       if (!season) return {year,value:null,sample:rawPA==null ? '' : rawPA+'타석',missing:hasRaw?'분석 제외':'기록 없음'};
-      const value = pitching ? season.stats[axis.key] : A.comparisonMetric(season,axis).actual;
-      return {year,value,sample:volumeText(season),lowSample:volume(season)<defaultMinimum,missing:'지표 결측'};
+      const {actual,reason} = (pitching ? pitchingModel : A).comparisonMetric(season,axis);
+      const missing = reason==='zeroInnings' ? '계산 불가' : metricReasons[reason];
+      return {year,value:actual,sample:volumeText(season),lowSample:volume(season)<defaultMinimum,missing};
     });
   }
 
@@ -247,19 +260,19 @@
     const priority = priorities.includes(fields[5]) ? fields[5] : priorities[0];
     const legacyNotes = legacyMemoLabels.map((label,i)=>label && typeof fields[i] === 'string' && fields[i].trim()
       ? `<p><strong>${label}</strong> ${esc(fields[i])}</p>` : '').join('');
-    const reasons = {missing:'원자료 결측',invalid:'계산 불가',position:'포지션 미확인',sample:'유효 표본 5명 미만'};
+    const baseline = entry.entry ? entry.entry.rank+'위 · '+fmt(entry.entry.value)+'점' : '순위 보류 · '+unrankedReason(row,entry.scope);
     const source = metadata.season_status?.[row.year] || '확정 여부 미확인';
     return `<article class="player-report">
-      <header><h3 class="player-name">${analysisPlayerName(row,row.name)}</h3><p class="muted">${esc(row.team)} · ${row.year}년 · ${pitching ? '' : esc(C.positionText(row.position))+' · '}${volumeText(row)}</p>
+      <header><h3 class="player-name">${analysisPlayerName(row,displayName(row))}</h3><p class="muted">${esc(row.team)} · ${row.year}년 · ${pitching ? '' : esc(C.positionText(row.position))+' · '}${volumeText(row)}</p>
       </header>
       <section data-analysis="overview"><p class="priority"><strong>검토 우선순위</strong> <span data-priority-label>${priority}</span></p>
         <p><strong>강점</strong> ${high || (rated.length ? '75백분위 이상인 지표 없음' : '비교 점수 없음')}</p>
         <p><strong>약점</strong> ${low || (rated.length ? '25백분위 이하인 지표 없음' : '비교 점수 없음')}</p>
         <p class="muted">${positionKnown ? `${pitching ? '동일 시즌' : '시즌·포지션'} 비교군 ${poolSize}명` : '세부 포지션 미확인으로 상대평가 보류'}${provisional ? (pitching ? ' · 적은 이닝 참고' : ' · 소타석 참고') : ''} · ${esc(source)}</p>
         <details data-print-expand><summary>실제 기록과 지표별 표본</summary>
-          ${entry.entry ? `<p class="candidate-fit">${esc(entry.scope.profile)} 탐색 ${entry.entry.rank}위 · ${fmt(entry.entry.value)}점 · ${pitching ? '전체 투수' : entry.scope.position ? esc(C.positionText(entry.scope.position)) : '전체 포지션'} ${entry.scope.minimum}${unit} 이상 ${entry.scope.poolSize}명</p>` : ''}
+          <p class="candidate-fit">${esc(entry.scope.profile)} 탐색 ${esc(baseline)} · ${pitching ? '전체 투수' : entry.scope.position ? esc(C.positionText(entry.scope.position)) : '전체 포지션'} ${entry.scope.minimum}${unit} 이상 ${entry.scope.poolSize}명</p>
           ${table(['지표','실제 기록','백분위','유효 표본'],playerAxes.map(axis=>[
-            `${axis.name} (${axis.code})`,raw(axis.actual,axis.key),axis.score===null ? reasons[axis.reason] : fmt(axis.score),`${axis.n}명`
+            `${axis.name} (${axis.code})`,raw(axis.actual,axis.key),axis.score===null ? metricReasons[axis.reason] : fmt(axis.score),`${axis.n}명`
           ]))}
           ${pitching ? pitchingDetails(row.stats) : ''}
         </details>
@@ -268,7 +281,8 @@
       <section data-analysis="field" class="field-review"><h4>현장 확인</h4>
         <p>${pitching ? '등판 역할·등판 간격, 구속·구종·회전수, 부상·회복 상태와 계약 조건을 현장에서 확인하세요.' : '수비 위치별 출전과 수비 동작, 주루 판단, 부상·회복 상태, 계약 조건을 확인하세요.'}</p>
         <label class="screen-only">검토 우선순위<select data-review="${esc(key)}" data-field="5">${priorities.map(value=>`<option value="${value}" ${value===priority?'selected':''}>${value}</option>`).join('')}</select></label>
-        <label class="screen-only">스카우트 관찰 메모<textarea data-review="${esc(key)}" data-field="3" rows="3">${esc(note)}</textarea></label>
+        <label class="screen-only">스카우트 관찰 메모<textarea data-review="${esc(key)}" data-field="3" rows="3">
+${esc(note)}</textarea></label>
         <p class="muted screen-only" role="status" data-storage="${esc(key)}">${readable?'이 브라우저에 자동 저장됩니다.':'이 브라우저에서 저장된 메모를 읽을 수 없습니다.'}</p>
         ${legacyNotes ? `<details data-print-expand><summary>이전 관찰 메모</summary>${legacyNotes}</details>` : ''}
         <p class="print-only print-note"><strong>관찰 메모</strong> <span data-print-note="${esc(key)}">${esc(note || '미작성')}</span></p>
@@ -453,26 +467,46 @@
       setTab(next.dataset.tab);
       next.focus();
     };
+    const auditView = KBODecisionAuditUI.create({$,table,raw,pitching,displayName});
+    $('open-audit').onclick = () => {
+      if (!selected.size) return;
+      const groups = new Map();
+      for (const {row,scope} of selected.values()) {
+        const key = JSON.stringify(scope);
+        if (!groups.has(key)) groups.set(key,{scope,rows:[]});
+        groups.get(key).rows.push(row);
+      }
+      const reviews = [...groups.values()].map(({scope,rows}) => KBODecisionAudit.review({
+        engine,records,pitching,scope,selected:rows,pool:poolFor(scope.year,scope.position,scope.minimum)
+      }));
+      auditView.open(reviews);
+    };
     $('print-report').onclick = () => window.print();
     $('report-content').oninput = event => { if (event.target.dataset.field === '3') saveReview(event); };
     $('report-content').onchange = event => { if (event.target.dataset.field === '5') saveReview(event); };
 
+    search();
     const requested = [...new Set(params.getAll('selection'))];
     if (!requested.length && params.has('id')) requested.push(C.selectionKey(params.get('id'),Number($('season').value)));
     for (const key of requested) {
       const row = engine.lookup.get(key);
-      if (row && selected.size < maxSelected) selected.set(key,{row});
+      if (!row || selected.size >= maxSelected) continue;
+      const scope = row.year===applied.year ? applied : {...applied,year:row.year};
+      const pool = poolFor(scope.year,scope.position,scope.minimum);
+      const entries = scope===applied ? ranked : ranking.evaluate(pool,scope.weights);
+      selected.set(key,{row,scope:{...scope,poolSize:pool.length},entry:entries.find(e=>e.row.id===row.id && e.rank)});
     }
-    let expandedForPrint = [];
+    if (selected.size) renderCandidates();
+    let expandedForPrint;
     window.addEventListener('beforeprint', () => {
-      expandedForPrint = ['radar-content','report-content'].flatMap(id=>[...$(id).querySelectorAll('[data-print-expand]')]).filter(panel=>!panel.open);
+      if (expandedForPrint) return;
+      expandedForPrint = ['radar-content','report-content',...($('decision-audit').hidden ? [] : ['audit-results'])].flatMap(id=>[...$(id).querySelectorAll('[data-print-expand]')]).filter(panel=>!panel.open);
       for (const panel of expandedForPrint) panel.open = true;
     });
     window.addEventListener('afterprint', () => {
-      for (const panel of expandedForPrint) panel.open = false;
-      expandedForPrint = [];
+      for (const panel of expandedForPrint || []) panel.open = false;
+      expandedForPrint = undefined;
     });
-    search();
     updateSelection();
     $('load-status').hidden = true;
     $('dashboard').hidden = false;

@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="portfolio.css">
   <link rel="stylesheet" href="button-hover.css?v=hover-45">
 <link rel="stylesheet" href="page-navigation.css">
+  <link rel="stylesheet" href="pdf-button.css" media="screen">
 </head>
 <body>
   <header class="masthead"><div>
@@ -56,7 +57,7 @@
       <div id="report-content"></div>
       <div class="screen-only" id="report-actions">
         <p><a id="open-comparison" target="_blank" rel="noopener">기존 기록 비교·CSV (새 탭)</a> · <a id="open-lab" target="_blank" rel="noopener">스카우팅 랩 (새 탭)</a></p>
-        <button type="button" id="print-report">보고서 인쇄 / PDF 저장</button>
+        <button type="button" class="pdf-export" id="print-report">보고서 인쇄 / <span class="pdf-label"><svg aria-hidden="true" focusable="false" viewBox="0 0 14 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M2 1h6l4 4v12H2z M8 1v5h4 M4 10h6 M4 13h5"/></svg>PDF</span> 저장</button>
         <p class="hint">메모는 이 주소의 브라우저에 선수·시즌별로 저장됩니다. 기기나 브라우저 간 자동 동기화는 없습니다. 인쇄 창에서 기본 머리글·바닥글 표시를 선택할 수 있습니다.</p>
         <p id="storage-status" role="status"></p>
       </div>

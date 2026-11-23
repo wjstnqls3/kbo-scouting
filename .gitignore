@@ -6,3 +6,5 @@ node_modules/
 kbo_comparison/ml/output/
 
 /site/
+
+/local-backups/

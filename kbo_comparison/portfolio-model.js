@@ -26,8 +26,7 @@
       }));
       return {row, scores, ...A.fitScore(scores, weights, comparisonAxes)};
     });
-    entries.sort((a,b) => (b.value ?? -1) - (a.value ?? -1) ||
-      b.row.stats.pa - a.row.stats.pa || a.row.name.localeCompare(b.row.name, 'ko') || a.row.id.localeCompare(b.row.id));
+    entries.sort((a,b) => (b.value ?? -1) - (a.value ?? -1));
     let previous = null, rank = 0;
     entries.forEach((entry, index) => {
       if (entry.value === null) return;
@@ -35,7 +34,9 @@
       entry.rank = rank;
       previous = entry.value;
     });
-    return entries;
+    const unranked = entries.length + 1;
+    return entries.sort((a,b) => (a.rank ?? unranked) - (b.rank ?? unranked) ||
+      b.row.stats.pa - a.row.stats.pa || a.row.name.localeCompare(b.row.name, 'ko') || a.row.id.localeCompare(b.row.id));
   }
   function poolFor(engine, year, position, minimum) {
     return (engine.byYear.get(year) || []).filter(row =>

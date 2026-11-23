@@ -1,0 +1,17 @@
+button.pdf-export {
+  min-height: 48px;
+  padding: 9px 16px;
+  border: 1px solid var(--control-line, #a7afb9);
+  background: white;
+  color: var(--ink, #20242a);
+  font-size: 1rem;
+}
+button.pdf-export:enabled:hover { background: var(--accent-surface, #eaf0f7); }
+button.pdf-export:disabled { background: var(--surface-muted, #f2f3f4); color: var(--muted, #525c67); }
+.pdf-export .pdf-label { color: #B94040; white-space: nowrap; }
+.pdf-label svg {
+  width: .8em;
+  height: 1em;
+  margin-inline-end: .2em;
+  vertical-align: -.12em;
+}

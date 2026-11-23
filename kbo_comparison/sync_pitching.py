@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 SOURCE = ROOT / 'kbo_pitching_stats_season_1982-2026.csv'
-FIELDS = ('Id', 'Player', 'Born', 'Season', 'Team', 'ERA', 'IP', 'G', 'SV',
+FIELDS = ('Id', 'Player', 'Age', 'Born', 'Season', 'Team', 'ERA', 'ER', 'IP', 'G', 'SV',
           'HLD', 'TBF', 'SO', 'BB', 'H', 'HR')
 
 def generate(source=SOURCE, output=ROOT / 'pitching-data.js'):

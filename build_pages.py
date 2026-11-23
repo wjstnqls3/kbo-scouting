@@ -16,6 +16,7 @@ FILES = (
     'metadata.js',
     'pitching-data.js',
     'pitching.js',
+    'pdf-button.css',
     'player-photo.js',
     'portfolio-model.js',
     'position-data.js',
@@ -24,12 +25,16 @@ FILES = (
     'scouting-dashboard.html',
     'scouting-portfolio.html',
     'start-motion.js',
-    'time-machine.css',
-    'time-machine.js',
-    'time-machine-ui.js',
+    'decision-audit.css',
+    'decision-audit.js',
+    'decision-audit-ui.js',
 )
 
 for name in FILES:
     target = ROOT / "site" / name
     target.parent.mkdir(parents=True, exist_ok=True)
     copyfile(ROOT / "kbo_comparison" / name, target)
+
+# Incremental builds may still contain assets from the retired workflow.
+for name in ('time-machine.css', 'time-machine.js', 'time-machine-ui.js'):
+    (ROOT / "site" / name).unlink(missing_ok=True)

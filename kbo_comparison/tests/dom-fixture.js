@@ -48,7 +48,12 @@ function parse(html,parent){
       for(const [,key,double,single,plain] of raw.matchAll(/([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g))attrs[key]=decode(double??single??plain??'');
       const el=new Element(tag,attrs);el.parent=stack.at(-1);el.parent.children.push(el);
       if(!voids.has(tag)&&!token.endsWith('/>'))stack.push(el);
-    }else stack.at(-1)._text+=decode(token);
+    }else {
+      const parent=stack.at(-1);
+      // HTML consumes the first newline immediately following a textarea start tag.
+      const content=parent.tagName==='textarea' && !parent._text ? token.replace(/^\n/,'') : token;
+      parent._text+=decode(content);
+    }
   }
 }
 

@@ -47,6 +47,14 @@
       era:outs > 0 ? number(raw.ERA) : null, g:count(raw.G), sv:count(raw.SV), hld:count(raw.HLD),
     };
   }
+  function comparisonMetric(row,axis) {
+    const actual = row.stats[axis.key];
+    if (Number.isFinite(actual)) return {actual,reason:null};
+    const perInning = axis.key==='hr' || axis.key==='whip';
+    const denominator = perInning ? row.stats.outs : row.stats.tbf;
+    const reason = denominator===0 ? (perInning ? 'zeroInnings' : 'zeroBatters') : 'missing';
+    return {actual:null,reason};
+  }
   function create(records) {
     const groups = new Map(), byYear = new Map(), lookup = new Map();
     for (const raw of records) {
@@ -56,7 +64,7 @@
       if (groups.has(key)) { groups.set(key,null); continue; }
       const stats = seasonStats(raw);
       groups.set(key,stats.g > 0 || stats.tbf > 0 || stats.outs > 0
-        ? {id,year,name:raw.Player,team:raw.Team || '미확인',stats} : null);
+        ? {id,year,name:raw.Player,team:raw.Team || '미확인',raw,stats} : null);
     }
     for (const [key,row] of groups) {
       if (!row) continue;
@@ -73,9 +81,9 @@
       const {size,reference} = baseline.get(row.year);
       return {row,poolSize:size,positionKnown:true,provisional:row.stats.outs===null||row.stats.outs<minimum*3,
         axes:axes.map(axis=>{
-          const actual = row.stats[axis.key], values = reference[axis.key];
+          const {actual,reason} = comparisonMetric(row,axis), values = reference[axis.key];
           const score = A.pct(actual===null ? null : actual*axis.direction,values);
-          return {...axis,actual,score,n:values.length,reason:actual===null?'missing':score===null?'sample':null};
+          return {...axis,actual,score,n:values.length,reason:reason ?? (score===null?'sample':null)};
         })};
     }
     const traitVectors = new Map();
@@ -121,8 +129,7 @@
         return [axis.key,{value:A.pct(value===null ? null : value*axis.direction,values),n:values.length}];
       }));
       return {row,scores,...A.fitScore(scores,weights,axes)};
-    }).sort((a,b)=>(b.value??-1)-(a.value??-1)||b.row.stats.outs-a.row.stats.outs||
-      a.row.name.localeCompare(b.row.name,'ko')||a.row.id.localeCompare(b.row.id));
+    }).sort((a,b)=>(b.value??-1)-(a.value??-1));
     let previous = null, rank = 0;
     entries.forEach((entry,index)=>{
       if (entry.value===null) return;
@@ -130,7 +137,9 @@
       entry.rank=rank;
       previous=entry.value;
     });
-    return entries;
+    const unranked = entries.length + 1;
+    return entries.sort((a,b) => (a.rank ?? unranked) - (b.rank ?? unranked) ||
+      b.row.stats.outs - a.row.stats.outs || a.row.name.localeCompare(b.row.name,'ko') || a.row.id.localeCompare(b.row.id));
   }
-  return {minimum,axes,presets,active,parseOuts,formatIP,seasonStats,create,poolFor,evaluate};
+  return {minimum,axes,presets,active,parseOuts,formatIP,seasonStats,comparisonMetric,create,poolFor,evaluate};
 });

@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>KBO SCOUTING LAB</title>
-  <link rel="stylesheet" href="scout-workflow.css?v=lab-design">
-  <link rel="stylesheet" href="time-machine.css?v=lab-design">
+  <link rel="stylesheet" href="scout-workflow.css?v=audit-report">
+  <link rel="stylesheet" href="decision-audit.css?v=audit-report">
   <script defer src="data.js"></script>
   <script defer src="metadata.js"></script>
   <script defer src="position-data.js"></script>
@@ -13,13 +13,14 @@
   <script defer src="analytics.js"></script>
   <script defer src="charts.js?v=lab-design"></script>
   <script defer src="portfolio-model.js"></script>
-  <script defer src="pitching-data.js"></script>
-  <script defer src="pitching.js?v=separate-profiles"></script>
+  <script defer src="pitching-data.js?v=deep-stats"></script>
+  <script defer src="pitching.js?v=report-reasons"></script>
   <script defer src="player-photo.js?v=mobile-portraits"></script>
-  <script defer src="time-machine.js?v=player-portraits"></script>
-  <script defer src="time-machine-ui.js?v=player-portraits"></script>
-  <script defer src="scout-workflow.js?v=analysis-portraits"></script>
-  <script defer src="start-motion.js?v=lab-design"></script>
+  <script defer src="decision-audit.js?v=audit-review"></script>
+  <script defer src="decision-audit-ui.js?v=audit-report"></script>
+  <script defer src="scout-workflow.js?v=report-reasons"></script>
+  <script defer src="start-motion.js?v=audit-entry"></script>
+  <link rel="stylesheet" href="pdf-button.css" media="screen">
 </head>
 <body>
   <section id="start-screen" class="start-screen" hidden aria-labelledby="start-title">
@@ -40,36 +41,17 @@
             <small>타격과 주루 지표 비교</small>
           </a>
         </section>
-        <section class="start-group" aria-labelledby="time-machine-scouting-title">
-          <h2 id="time-machine-scouting-title">타임머신 스카우팅</h2>
-          <a class="start-card" href="?mode=time-machine">
-            <span class="motion-preview time-machine-preview" aria-hidden="true">
-              <span class="time-console">
-                <span class="time-display">
-                  <span class="time-window"><span class="time-years" id="time-years"><span>2026</span></span></span>
-                </span>
-                <span class="time-dial" id="time-dial"></span>
-              </span>
-            </span>
-            <span class="start-action">타임머신 시작 <span aria-hidden="true">→</span></span>
-            <small>과거 기록으로 선택하고 이후 성적으로 검토</small>
-          </a>
-        </section>
       </nav>
     </div>
   </section>
   <header id="dashboard-header" class="masthead" hidden>
     <div class="shell header-inner">
       <div class="header-title"><p class="product-name">KBO SCOUTING LAB</p><h1 id="dashboard-title">스카우팅 보드</h1></div>
-      <div class="header-actions screen-only">
-        <nav class="mode-switch" aria-label="분석 전환">
-          <a href="?">시작 화면</a>
-          <a href="?mode=time-machine">타임머신</a>
-          <a id="switch-batting" href="?mode=batting">타자 분석</a>
-          <a id="switch-pitching" href="?mode=pitching">투수 분석</a>
-        </nav>
-        <button type="button" class="secondary" id="print-report" disabled>인쇄 / PDF 저장</button>
-      </div>
+      <nav class="mode-switch screen-only" aria-label="분석 전환">
+        <a href="?">시작 화면</a>
+        <a id="switch-batting" href="?mode=batting">타자 분석</a>
+        <a id="switch-pitching" href="?mode=pitching">투수 분석</a>
+      </nav>
     </div>
   </header>
   <main id="dashboard-main" class="shell" hidden>
@@ -124,6 +106,10 @@
           <p id="selection-message" class="screen-only" role="status" hidden></p>
           <p id="report-empty" class="empty" hidden>후보를 선택하면 레이더와 평가가 표시됩니다.</p>
           <div id="radar-content"></div>
+          <div id="selection-actions" class="selection-actions screen-only" hidden>
+            <button type="button" class="secondary pdf-export" id="print-report" disabled>기본 리포트 <span class="pdf-label"><svg aria-hidden="true" focusable="false" viewBox="0 0 14 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M2 1h6l4 4v12H2z M8 1v5h4 M4 10h6 M4 13h5"/></svg>PDF</span></button>
+            <button type="button" id="open-audit" disabled>추천 결과 검증하기</button>
+          </div>
         </section>
       </div>
       <section id="analysis" class="panel analysis-panel" aria-labelledby="analysis-heading" hidden>
@@ -150,49 +136,15 @@
         </div>
       </section>
     </div>
+    <section id="decision-audit" hidden aria-labelledby="audit-heading">
+      <header class="panel audit-header">
+        <div><p class="product-name">KBO SCOUTING LAB</p><h1 id="audit-heading" tabindex="-1">스카우팅 검증실 <small>(심층 지표 분석)</small></h1>
+        <p class="muted">추가 기록 활용 → 추천 순위 안정성 · 선수별 강점/약점 · 기록 신뢰성 검토</p></div>
+        <div class="audit-actions screen-only"><button type="button" class="secondary" id="close-audit">일반 스카우팅 복귀</button>
+        <button type="button" class="secondary pdf-export" id="print-audit">검증 포함 <span class="pdf-label"><svg aria-hidden="true" focusable="false" viewBox="0 0 14 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M2 1h6l4 4v12H2z M8 1v5h4 M4 10h6 M4 13h5"/></svg>PDF</span></button></div>
+      </header>
+      <div id="audit-results"></div>
+    </section>
   </main>
-  <div id="time-machine" hidden>
-    <header class="masthead">
-      <div class="shell header-inner">
-        <div class="header-title"><p class="product-name">KBO SCOUTING LAB</p><h1>타임머신 스카우팅</h1></div>
-        <nav class="mode-switch" aria-label="모드 전환">
-          <a href="?">시작 화면</a>
-          <a href="?mode=batting">일반 스카우팅</a>
-        </nav>
-      </div>
-    </header>
-    <main class="shell tm-main">
-      <ol class="tm-progress" id="tm-progress" aria-label="진행 단계">
-        <li aria-current="step">조건 설정</li>
-        <li>블라인드 비교</li>
-        <li>판단 확인</li>
-        <li>미래 성적</li>
-        <li>결과 요약</li>
-      </ol>
-      <section class="panel tm-panel" id="tm-panel" aria-labelledby="tm-heading">
-        <header class="panel-heading tm-heading">
-          <h2 id="tm-heading" tabindex="-1">평가 기준 선택</h2>
-          <p id="tm-context" class="muted" hidden></p>
-        </header>
-        <form id="tm-form">
-          <div class="tm-filters">
-            <label>평가 기준 시즌<select id="tm-year" required></select></label>
-            <label>선수 유형<select id="tm-type"><option value="batting">타자</option><option value="pitching">투수</option></select></label>
-            <label>포지션 / 등판 규모<select id="tm-position"></select></label>
-            <label><span id="tm-min-label">최소 타석</span><input id="tm-min" type="number" min="1" step="1" required></label>
-            <button id="tm-submit" type="submit">블라인드 비교 시작</button>
-          </div>
-          <p id="tm-position-help" class="muted" hidden>투수는 경기당 3이닝을 기준으로 등판 규모를 구분합니다. 선발·구원 여부는 CSV에서 확인할 수 없습니다.</p>
-          <p id="tm-rule" class="tm-rule"></p>
-          <p id="tm-error" role="status" hidden></p>
-        </form>
-        <div id="tm-content"></div>
-        <div id="tm-actions" class="tm-actions" hidden>
-          <button type="button" id="tm-next"></button>
-          <button type="button" id="tm-reset" class="secondary">조건 다시 선택</button>
-        </div>
-      </section>
-    </main>
-  </div>
 </body>
 </html>

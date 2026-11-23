@@ -1,0 +1,98 @@
+#decision-audit, #audit-results, .audit-group { display: grid; gap: var(--space-3); }
+.audit-header, .audit-actions { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
+.audit-group > section { min-width: 0; border-top: 1px solid var(--line); padding-top: var(--space-3); }
+.audit-group h3, .audit-group h4 { margin-bottom: var(--space-1); }
+.audit-group p { font-size: .875rem; }
+.audit-group details, .audit-group details h4, .audit-decision + .audit-decision { margin-top: var(--space-2); }
+.audit-group td { font-variant-numeric: tabular-nums; }
+.audit-findings { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,240px),1fr)); gap: var(--space-3); }
+.audit-inputs { display: grid; grid-template-columns: minmax(130px,190px) minmax(0,1fr); gap: var(--space-2); }
+.audit-target { font-weight: 650; }
+.audit-target small { font-weight: 450; color: var(--muted); }
+.audit-facts { margin: 0; display: grid; grid-template-columns: max-content minmax(0,1fr); gap: 3px var(--space-3); font-size: .8125rem; }
+.audit-facts dt, .audit-facts small, .audit-decision h5 small { color: var(--muted); font-weight: 450; }
+.audit-facts dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.audit-facts small, .audit-decision h5 small { font-size: .8125rem; }
+.audit-reading { display: inline-block; }
+.audit-finding strong, .audit-model b { font-weight: 650; }
+.audit-decision h5 { margin: 0 0 var(--space-1); font-size: .875rem; }
+.audit-decision h5 small { margin-inline-start: var(--space-2); }
+.audit-finding h4 span, .audit-decision h4 span { font-weight: 450; }
+@media screen {
+  .audit-actions button { min-height: 48px; padding: 9px var(--space-4); font-size: 1rem; }
+  [data-auditing="true"] { display: none !important; }
+  .audit-finding + .audit-finding, .audit-decision { padding-top: var(--space-2); border-top: 1px solid var(--line); }
+  .audit-decision { margin-top: var(--space-2); }
+  .audit-finding .audit-facts, .audit-model .audit-facts { margin-top: var(--space-1); }
+  .audit-editor { margin-block: var(--space-2); }
+  .audit-inputs { align-items: start; }
+  .audit-inputs :is(select,textarea) { height: var(--control-height); }
+}
+@media screen and (min-width: 960px) {
+  .audit-decision { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.2fr); gap: var(--space-1) var(--space-5); }
+  .audit-decision h4 { grid-column: 1 / -1; }
+  .audit-editor { margin-block: 0; }
+}
+@media (max-width: 640px) {
+  .audit-inputs { grid-template-columns: 1fr; }
+  .audit-group .table-wrap { overflow-x: auto; }
+  .audit-group table { min-width: 480px; }
+}
+@media print {
+  #decision-audit { display: block; margin-top: var(--space-3); }
+  .audit-header, .audit-group > header { break-after: avoid; }
+  .audit-group thead { display: table-header-group; }
+  .audit-group .table-wrap { break-inside: auto; }
+  .audit-stability > .table-wrap { break-inside: avoid; }
+  .audit-method p { margin-top: var(--space-1); }
+  #audit-results,.audit-group { display: block; }
+  .audit-group > section { margin-top: 8px; }
+  .audit-group .table-wrap { overflow: visible; }
+  .audit-group table { min-width: 0; }
+  .audit-group td,.audit-group th { padding: 2px 5px; }
+  .audit-finding,.audit-decision,tr { break-inside: avoid; }
+  .audit-group h3,.audit-group h4,summary { break-after: avoid; }
+}
+#audit-heading small, .audit-group h3 small { color: var(--muted); font-size: .84rem; font-weight: 500; }
+.audit-stability h3, .audit-deep h3 { margin-bottom: var(--space-2); font-weight: 650; }
+.audit-stability h3 small { display: inline-block; margin-inline-start: .35em; }
+.audit-stability h3 small strong { color: var(--ink); }
+.audit-comparison :is(th,td):not(:first-child) { text-align: end; }
+.audit-comparison :is(td,th) { vertical-align: top; }
+.audit-comparison strong { color: var(--ink); font-weight: 650; }
+.audit-comparison small { display: block; color: var(--muted); font-size: .8125rem; font-weight: 400; }
+.audit-stability .audit-comparison strong { white-space: nowrap; }
+.audit-stability .audit-comparison th:first-child { width: 19%; }
+.audit-stability .audit-comparison :is(th,td):last-child { width: 22%; text-align: start; padding-inline-start: var(--space-3); }
+.audit-condition { color: var(--muted); }
+.audit-group details { border-top: 1px solid var(--line); }
+.audit-method { min-width: 0; }
+.audit-method[open] > summary { margin-bottom: var(--space-2); }
+.audit-signals { display: grid; margin: 0; padding: 0; list-style: none; font-size: .875rem; }
+.audit-signals li { display: grid; grid-template-columns: minmax(5em, auto) 1fr; gap: var(--space-2); padding-block: var(--space-1); }
+.audit-signals li > div { display: flex; flex-wrap: wrap; gap: 2px var(--space-3); color: var(--muted); }
+.audit-signals b { margin-inline-start: .15em; color: var(--ink); font-weight: 600; }
+@media screen and (max-width: 640px) {
+  .audit-group .audit-comparison { word-break: keep-all; }
+  .audit-deep .audit-comparison { min-width: 100%; }
+  .audit-deep .audit-comparison :is(th,td) { min-width: 6rem; }
+  .audit-stability .audit-comparison { min-width: 100%; }
+  .audit-stability .audit-comparison :is(th,td) { padding-inline: 3px; }
+  .audit-stability .audit-comparison th:first-child { width: auto; }
+  .audit-stability .audit-comparison strong { white-space: normal; }
+  /* The expanded scenario table identifies every maximum shift. */
+  .audit-stability .audit-comparison tr > :last-child { display: none; }
+}
+@media screen and (min-width: 1180px) {
+  .audit-group { grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); }
+  .audit-group > * { grid-column: 1 / -1; }
+  .audit-group > header { display: grid; grid-template-columns: 1fr auto; align-items: baseline; column-gap: 16px; }
+  .audit-group > header > :nth-child(even) { text-align: end; }
+  .audit-group > .audit-deep { grid-column: 1; }
+  .audit-group > .audit-reliability { grid-column: 2; }
+  .audit-reliability .audit-findings { grid-template-columns: repeat(auto-fit,minmax(min(100%,17rem),1fr)); gap: var(--space-3); }
+  .audit-finding + .audit-finding { padding-top: 0; border: 0; }
+  .audit-reliability:has(details[open]), .audit-deep:has(details[open]) { grid-column: 1 / -1; }
+  .audit-group:has(.audit-deep details[open]) > .audit-reliability,
+  .audit-group:has(.audit-reliability details[open]) > .audit-deep { grid-column: 1 / -1; }
+}

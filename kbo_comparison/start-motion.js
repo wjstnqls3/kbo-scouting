@@ -3,7 +3,6 @@
   if (start.hidden || typeof window.matchMedia !== 'function') return;
 
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-  animateYearReel();
   const duration = 3400;
   const ground = 91;
   const skin = '#9a8177';
@@ -12,59 +11,6 @@
   const ball = '#384754';
   const pose = (head, shoulders, hips, backLeg, leadLeg, backArm, leadArm, bat = [0, 0]) =>
     [head, shoulders, hips, ...backLeg, ...leadLeg, ...backArm, ...leadArm, bat];
-
-  function animateYearReel() {
-    const reel = document.getElementById('time-years');
-    const dial = document.getElementById('time-dial');
-    const seasons = new Set(battingData.map(row => Number(row.Season)).filter(Number.isInteger));
-    if (!seasons.size) return;
-    const first = Math.min(...seasons);
-    const last = Math.max(...seasons);
-    const steps = last - first;
-    const years = Array.from({length: steps + 1}, (_, step) => last - step);
-    // The extra reel cell makes the wrap to the first frame visually seamless.
-    if (steps) years.push(last);
-    reel.innerHTML = years.map(year => `<span>${year}</span>`).join('');
-    if (!steps || typeof reel.animate !== 'function') return;
-
-    const yearInterval = 330;
-    const rollTime = 230;
-    const pauseAtFirstYear = 1500;
-    const rewindTime = steps * yearInterval;
-    const restartTime = rewindTime + pauseAtFirstYear;
-    const cycle = restartTime + rollTime;
-    const position = step => `translateY(calc(-${step} * var(--year-height)))`;
-    const frames = [{transform: position(0), offset: 0}];
-    for (let step = 1; step <= steps; step++) {
-      const arrival = step * yearInterval;
-      frames.push(
-        {transform: position(step - 1), offset: (arrival - rollTime) / cycle, easing: 'ease-in-out'},
-        {transform: position(step), offset: arrival / cycle},
-      );
-    }
-    frames.push(
-      {transform: position(steps), offset: restartTime / cycle, easing: 'ease-in-out'},
-      {transform: position(steps + 1), offset: 1},
-    );
-    const rotation = `rotate(-${Math.ceil(steps / 8) * 360}deg)`;
-    const options = {duration: cycle, iterations: Infinity};
-    const animations = [
-      reel.animate(frames, options),
-      dial.animate([
-        {transform: 'rotate(0deg)', offset: 0},
-        {transform: rotation, offset: rewindTime / cycle},
-        {transform: rotation, offset: 1},
-      ], options),
-    ];
-    function syncMotionPreference() {
-      for (const animation of animations) {
-        if (reducedMotion.matches) animation.cancel();
-        else animation.play();
-      }
-    }
-    reducedMotion.addEventListener('change', syncMotionPreference);
-    syncMotionPreference();
-  }
 
   const contactTime = 0.61;
   const releaseTime = 0.59;
